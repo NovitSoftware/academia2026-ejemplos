@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- Vista previa del webview fuera de VS Code: simula la API y el tema oscuro, y reproduce una conversación. -->
+<!-- Uso: npm run build && npx http-server . -p 5199  →  http://localhost:5199/scripts/vista-previa.html -->
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="../media/chat.css" />
+  <style>
+    :root {
+      --vscode-font-family: system-ui, sans-serif; --vscode-font-size: 13px; --vscode-editor-font-family: ui-monospace, monospace;
+      --vscode-foreground: #cccccc; --vscode-descriptionForeground: #9d9d9d; --vscode-panel-border: #3c3c3c;
+      --vscode-editorWidget-background: #252526; --vscode-editor-background: #1e1e1e; --vscode-textCodeBlock-background: #2b2b2b;
+      --vscode-button-background: #0e639c; --vscode-button-foreground: #fff; --vscode-button-hoverBackground: #1177bb;
+      --vscode-button-secondaryBackground: #3a3d41; --vscode-button-secondaryForeground: #fff; --vscode-button-secondaryHoverBackground: #45494e;
+      --vscode-input-background: #3c3c3c; --vscode-input-foreground: #ccc; --vscode-input-border: #3c3c3c; --vscode-focusBorder: #007fd4;
+      --vscode-textLink-foreground: #3794ff; --vscode-list-hoverBackground: #2a2d2e;
+    }
+    body { background: #181818; width: 400px; border-right: 1px solid #333; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    window.enviados = [];
+    window.acquireVsCodeApi = () => ({ postMessage: m => { window.enviados.push(m); } });
+    const post = m => window.postMessage(m, "*");
+    const t0 = Date.now();
+    const estado = (ocupado) => post({ tipo: "estado", estado: {
+      conectado: true, conectando: false, mcpUrl: "http://localhost:5100/mcp", servidor: "MesaYa · servidor MCP de reservas 1.0.0",
+      sesion: "dENzsvBG1L0Y", protocolo: "2025-11-25", ocupado,
+      tools: ["listar_sucursales","consultar_menu","buscar_disponibilidad","reservar_mesa","cancelar_reserva"].map(n => ({ nombre: n, descripcion: "…" })),
+      modelo: "qwen3.5:9b", modelos: [{ nombre: "qwen3.5:9b", tools: true, tamano: "9.7B" }, { nombre: "granite4.2:3b", tools: false, tamano: "3.7B" }] } });
+    setTimeout(() => {
+      estado(true);
+      post({ tipo: "mensaje", mensaje: { id: "1", rol: "user", texto: "Reservá para 4 el viernes a las 21 en Palermo, cel +5491155550123" } });
+      post({ tipo: "paso", paso: { id: "a", tipo: "llm", iteracion: 1, titulo: "qwen3.5:9b", sub: "tool_calls: reservar_mesa · 1366 tokens entrada · 29 salida · 2729 ms", estado: "ok", inicio: t0, duracionMs: 2732, entrada: "{}", salida: "{}" } });
+      post({ tipo: "paso", paso: { id: "b", tipo: "tool", iteracion: 1, titulo: "reservar_mesa", sub: "isError · SIN_DISPONIBILIDAD", estado: "error", codigoError: "SIN_DISPONIBILIDAD", inicio: t0, duracionMs: 1823,
+        entrada: JSON.stringify({ sucursal_id: "PAL", fecha_hora: "2026-10-30T21:00:00-03:00", personas: 4, telefono: "+5491155550123" }, null, 2),
+        salida: JSON.stringify({ codigo: "SIN_DISPONIBILIDAD", mensaje: "Sin mesa a las 21:00.", detalle: { alternativas: ["20:30", "22:15"] } }, null, 2) } });
+      post({ tipo: "mensaje", mensaje: { id: "2", rol: "assistant", texto: "**No se pudo reservar**: no hay mesa a las 21:00 en Palermo (`SIN_DISPONIBILIDAD`).\n\nTengo lugar a las **20:30** o **22:15**. ¿Cuál te sirve?" } });
+      post({ tipo: "uso", uso: { entrada: 4153, salida: 371, llamadas: 3, ultimoTps: 24.6, promedioTps: 22.1 } });
+      post({ tipo: "mensaje", mensaje: { id: "3", rol: "user", texto: "Dale, 22:15" } });
+      post({ tipo: "paso", paso: { id: "c", tipo: "tool", iteracion: 2, titulo: "reservar_mesa", sub: "tools/call por MCP", estado: "encurso", inicio: Date.now() - 1800, progreso: "Esperando la confirmación del usuario (elicitation)…",
+        entrada: JSON.stringify({ sucursal_id: "PAL", fecha_hora: "2026-10-30T22:15:00-03:00", personas: 4, telefono: "+5491155550123" }, null, 2) } });
+      post({ tipo: "elicitacion", pedido: { id: "e1", mensaje: "¿Confirmás la reserva para 4 personas en Palermo el viernes 30/10 a las 22:15 (tel. +5491155550123)?",
+        schema: { properties: { nota: { type: "string", title: "Nota para el restaurante", description: "Opcional: cumpleaños, silla para bebé, alergias…", maxLength: 200 } } } } });
+    }, 100);
+  </script>
+  <script src="../dist/webview.js"></script>
+</body>
+</html>

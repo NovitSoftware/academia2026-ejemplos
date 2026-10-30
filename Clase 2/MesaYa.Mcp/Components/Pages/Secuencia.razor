@@ -1,0 +1,452 @@
+@page "/secuencia"
+@implements IDisposable
+@inject BusTraza Bus
+@inject Escenarios Escenarios
+@inject IJSRuntime JS
+
+<PageTitle>Secuencia en vivo · MesaYa MCP Lab</PageTitle>
+
+<div class="secuencia-pagina">
+    <!-- ============ Barra de controles ============ -->
+    <div class="sec-controles">
+        <div class="vistas">
+            <button class="vista @(vista == Vista.Secuencia ? "activa" : "")" @onclick="() => vista = Vista.Secuencia">Diagrama de secuencia</button>
+            <button class="vista @(vista == Vista.Tiempo ? "activa" : "")" @onclick="() => vista = Vista.Tiempo">Línea de tiempo</button>
+            <button class="vista @(vista == Vista.JsonRpc ? "activa" : "")" @onclick="() => vista = Vista.JsonRpc">Mensajes JSON-RPC</button>
+        </div>
+        <select class="form-select form-select-sm sel-conv" value="@filtro" @onchange="e => { filtro = e.Value?.ToString() ?? Seguir; seleccionado = null; }">
+            <option value="@Seguir">▶ Seguir la última conversación</option>
+            <option value="@Todas">Todas las conversaciones</option>
+            @foreach (var c in conversaciones)
+            {
+                <option value="@c">@Bus.NombreDe(c)</option>
+            }
+        </select>
+        <label class="form-check form-switch m-0 small"><input class="form-check-input" type="checkbox" @bind="mostrarNotificaciones" /> progreso y logs</label>
+        <label class="form-check form-switch m-0 small"><input class="form-check-input" type="checkbox" @bind="soloMcp" /> solo MCP</label>
+        <label class="form-check form-switch m-0 small"><input class="form-check-input" type="checkbox" @bind="autoScroll" /> auto-scroll</label>
+        <button class="btn btn-sm @(pausado ? "btn-warning" : "btn-outline-secondary")" @onclick="AlternarPausa">@(pausado ? "▶ Reanudar" : "⏸ Pausar")</button>
+        <button class="btn btn-sm btn-outline-danger" @onclick="Limpiar">🗑 Limpiar</button>
+    </div>
+
+    <!-- ============ Métricas ============ -->
+    <div class="sec-metricas">
+        <div class="metrica mcp"><b>@visibles.Count(e => e.EsMcp)</b><span>mensajes MCP</span></div>
+        <div class="metrica"><b>@visibles.Count(e => e.EsMcp && e.Tipo == TipoTraza.Request && e.Etiqueta.StartsWith("tools/call"))</b><span>tools/call</span></div>
+        <div class="metrica"><b>@visibles.Count(e => e.Hacia == Actor.Llm && e.Tipo == TipoTraza.Request)</b><span>llamadas al LLM</span></div>
+        <div class="metrica"><b>@visibles.Count(e => e.Hacia == Actor.Api && e.Tipo == TipoTraza.Request)</b><span>HTTP a la API</span></div>
+        <div class="metrica @(visibles.Any(e => e.Error) ? "error" : "")"><b>@visibles.Count(e => e.Error)</b><span>errores</span></div>
+        <div class="metrica"><b>@Seg(TotalMs())</b><span>duración total</span></div>
+        <div class="metrica"><b>@Seg(MayorHueco())</b><span>mayor espera</span></div>
+        <div class="metrica escenario"><b>@(Escenarios.Actual == Escenario.Normal ? "🟢" : "🌪️")</b><span>@Escenarios.Describir(Escenarios.Actual)</span></div>
+    </div>
+
+    <div class="sec-cuerpo">
+        <div class="sec-lienzo" id="sec-lienzo">
+            @if (visibles.Length == 0)
+            {
+                <div class="sec-vacio">
+                    <p class="h5">Esperando eventos…</p>
+                    <p>Mandá un mensaje desde la pestaña <a href="" target="_blank">Agente</a>, ejecutá una tool desde el
+                       <a href="inspector" target="_blank">Inspector MCP</a> o conectá un cliente externo a <code>/mcp</code>.
+                       Cada mensaje JSON-RPC aparece acá en tiempo real.</p>
+                </div>
+            }
+            else if (vista == Vista.Secuencia)
+            {
+                <!-- Cabecera fija con los participantes -->
+                <svg class="sec-cabecera" viewBox="0 0 @W 74" preserveAspectRatio="xMinYMin meet">
+                    <rect x="@(X(Actor.ClienteMcp) - 80)" y="2" width="@(X(Actor.ServidorMcp) - X(Actor.ClienteMcp) + 160)" height="17" rx="5" class="banda-mcp-titulo" />
+                    <text x="@((X(Actor.ClienteMcp) + X(Actor.ServidorMcp)) / 2)" y="14" class="banda-mcp-texto">MCP · JSON-RPC 2.0 sobre Streamable HTTP</text>
+                    @foreach (var a in Enum.GetValues<Actor>())
+                    {
+                        <g class="actor @Clase(a)">
+                            <rect x="@(X(a) - 80)" y="24" width="160" height="44" rx="10" />
+                            <text x="@X(a)" y="43" class="actor-emoji">@Emoji(a) @Nombre(a)</text>
+                            <text x="@X(a)" y="60" class="actor-sub">@Sub(a)</text>
+                        </g>
+                    }
+                </svg>
+
+                <svg class="sec-svg" viewBox="0 0 @W @alto" preserveAspectRatio="xMinYMin meet" style="aspect-ratio: @W / @alto">
+                    <defs>
+                        @foreach (var a in Enum.GetValues<Actor>())
+                        {
+                            <marker id="flecha-@Clase(a)" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                                <path d="M0,0 L10,5 L0,10 z" class="punta @Clase(a)" />
+                            </marker>
+                        }
+                        <marker id="flecha-error" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                            <path d="M0,0 L10,5 L0,10 z" class="punta error" />
+                        </marker>
+                        <pattern id="rayado" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                            <rect width="4" height="8" class="rayado" />
+                        </pattern>
+                    </defs>
+
+                    <rect x="@X(Actor.ClienteMcp)" y="0" width="@(X(Actor.ServidorMcp) - X(Actor.ClienteMcp))" height="@alto" class="banda-mcp" />
+                    @foreach (var a in Enum.GetValues<Actor>())
+                    {
+                        <line x1="@X(a)" y1="0" x2="@X(a)" y2="@alto" class="vida @Clase(a)" />
+                    }
+
+                    @foreach (var f in filas.Where(f => f.GapMs is not null))
+                    {
+                        <g class="hueco-g @(f.Ocioso ? "ocioso" : "")" @key="(-f.E.Id)">
+                            <rect x="0" y="@f.GapTop" width="@W" height="@f.GapAlto" fill="@(f.Ocioso ? "none" : "url(#rayado)")" class="hueco" />
+                            <text x="8" y="@(f.GapTop + f.GapAlto / 2 + 4)" class="hueco-texto">@(f.Ocioso ? "💤" : "⏳") @Seg(f.GapMs)</text>
+                            @if (!f.Ocioso)
+                            {
+                                <g><text x="@(W - 10)" y="@(f.GapTop + f.GapAlto / 2 + 4)" class="hueco-texto der">esperando a: @f.EsperandoA</text></g>
+                            }
+                            else
+                            {
+                                <g><text x="@(W - 10)" y="@(f.GapTop + f.GapAlto / 2 + 4)" class="hueco-texto der">inactivo (nadie trabajando)</text></g>
+                            }
+                        </g>
+                    }
+
+                    @foreach (var b in barras)
+                    {
+                        <rect x="@(b.X - 5)" y="@b.Y1" width="10" height="@Math.Max(4, b.Y2 - b.Y1)" rx="2"
+                              class="activacion @Clase(b.Actor) @(b.Abierta ? "abierta" : "")" />
+                    }
+
+                    @foreach (var f in filas)
+                    {
+                        var e = f.E;
+                        var x1 = X(e.Desde);
+                        var x2 = X(e.Hacia);
+                        var clase = $"fila {TipoClase(e)} {(e.EsMcp ? "mcp" : "")} {(e.Error ? "error" : "")} {(seleccionado?.Id == e.Id ? "sel" : "")}";
+                        var marcador = e.Error ? "flecha-error" : $"flecha-{Clase(e.Desde)}";
+                        <g class="@clase" @key="e.Id" @onclick="() => seleccionado = e">
+                            <rect x="@(Gutter - 4)" y="@(f.Y - 20)" width="@(W - Gutter)" height="28" class="fila-hit" />
+                            <text x="8" y="@(f.Y + 3)" class="tiempo">@Rel(e)</text>
+                            @if (e.Desde == e.Hacia)
+                            {
+                                <g>
+                                    <path d="M@(x1 + 5),@(f.Y - 8) h34 v14 h-32" class="flecha @Clase(e.Desde)" marker-end="url(#@marcador)" />
+                                    <text x="@(x1 + 46)" y="@(f.Y + 2)" class="etiqueta izq @Clase(e.Desde)">@Recortar(e.Etiqueta, 46)</text>
+                                </g>
+                            }
+                            else
+                            {
+                                var dir = x2 > x1 ? 1 : -1;
+                                var max = (int)Math.Max(14, Math.Abs(x2 - x1) / 6.6);
+                                <g>
+                                    <line x1="@(x1 + dir * 5)" y1="@f.Y" x2="@(x2 - dir * 6)" y2="@f.Y" class="flecha @Clase(e.Desde)" marker-end="url(#@marcador)" />
+                                    <text x="@((x1 + x2) / 2)" y="@(f.Y - 6)" class="etiqueta @Clase(e.Desde)">@Recortar(e.Etiqueta, max)</text>
+                                    @if (e.DuracionMs is { } d)
+                                    {
+                                        <g><text x="@(x2 - dir * 12)" y="@(f.Y + 12)" class="duracion @(dir > 0 ? "der" : "izq") @(d >= 1000 ? "lenta" : "")">@Seg(d)</text></g>
+                                    }
+                                </g>
+                            }
+                        </g>
+                    }
+                </svg>
+            }
+            else if (vista == Vista.Tiempo)
+            {
+                var (t0, total) = Ventana();
+                var altoT = 46 + tramos.Count * 24 + 20;
+                <svg class="sec-svg tiempo-svg" viewBox="0 0 @W @altoT" preserveAspectRatio="xMinYMin meet" style="aspect-ratio: @W / @altoT">
+                    @foreach (var (t, rotulo) in Marcas(total))
+                    {
+                        var x = TX(t, total);
+                        <g>
+                            <line x1="@x" y1="30" x2="@x" y2="@(altoT - 10)" class="grilla" />
+                            <text x="@x" y="24" class="grilla-texto">@rotulo</text>
+                        </g>
+                    }
+                    <text x="8" y="14" class="grilla-texto izq">notificaciones MCP</text>
+                    @foreach (var n in visibles.Where(e => e.Tipo is TipoTraza.Notificacion or TipoTraza.Nota))
+                    {
+                        var x = TX((n.Momento - t0).TotalMilliseconds, total);
+                        <path d="M@x,4 l4,6 l-4,6 l-4,-6 z" class="tick @Clase(n.Desde)" @onclick="() => seleccionado = n"><title>@n.Etiqueta</title></path>
+                    }
+                    @for (var i = 0; i < tramos.Count; i++)
+                    {
+                        var t = tramos[i];
+                        var y = 46 + i * 24;
+                        var xa = TX((t.Req.Momento - t0).TotalMilliseconds, total);
+                        var fin = t.Resp?.Momento ?? DateTimeOffset.Now;
+                        var xb = Math.Max(xa + 2, TX((fin - t0).TotalMilliseconds, total));
+                        var ms = (fin - t.Req.Momento).TotalMilliseconds;
+                        var error = t.Resp?.Error == true;
+                        var ev = t.Req;
+                        <g class="tramo @(seleccionado?.Id == t.Req.Id || seleccionado?.Id == t.Resp?.Id ? "sel" : "")" @key="t.Req.Id" @onclick="() => seleccionado = t.Resp ?? ev">
+                            <rect x="0" y="@(y - 9)" width="@W" height="22" class="fila-hit" />
+                            <text x="@(Etiquetas - 8)" y="@(y + 6)" class="tramo-texto">@Emoji(t.Req.Hacia) @Recortar(t.Req.Etiqueta, 44)</text>
+                            <rect x="@xa" y="@(y - 5)" width="@(xb - xa)" height="14" rx="3"
+                                  class="barra @Clase(t.Req.Hacia) @(t.Resp is null ? "abierta" : "") @(error ? "error" : "") @(t.Req.EsMcp ? "mcp" : "")" />
+                            <text x="@(xb + 6)" y="@(y + 6)" class="tramo-dur @(ms >= 1000 ? "lenta" : "")">@Seg(ms)@(t.Resp is null ? " …" : "")</text>
+                        </g>
+                    }
+                </svg>
+            }
+            else
+            {
+                <table class="tabla-rpc">
+                    <thead><tr><th>t</th><th>sentido</th><th>tipo</th><th>mensaje</th><th>duración</th></tr></thead>
+                    <tbody>
+                        @foreach (var e in visibles.Where(e => e.EsMcp))
+                        {
+                            <tr class="@(e.Error ? "error" : "") @(seleccionado?.Id == e.Id ? "sel" : "")" @key="e.Id" @onclick="() => seleccionado = e">
+                                <td class="mono">@Rel(e)</td>
+                                <td>@(e.Desde == Actor.ClienteMcp ? "cliente → servidor" : "servidor → cliente")</td>
+                                <td><span class="tipo-rpc @TipoClase(e)">@TipoTexto(e)</span></td>
+                                <td class="mono">@e.Etiqueta</td>
+                                <td class="mono">@Seg(e.DuracionMs)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        <!-- ============ Detalle del evento seleccionado ============ -->
+        <aside class="sec-detalle">
+            @if (seleccionado is { } s)
+            {
+                <div class="det-cabeza">
+                    <span class="tipo-rpc @TipoClase(s)">@TipoTexto(s)</span>
+                    @if (s.EsMcp) { <span class="badge-mcp">MCP</span> }
+                    <button class="btn-close ms-auto" aria-label="Cerrar" @onclick="() => seleccionado = null"></button>
+                </div>
+                <div class="det-ruta">@Emoji(s.Desde) @Nombre(s.Desde) → @Emoji(s.Hacia) @Nombre(s.Hacia)</div>
+                <div class="det-etiqueta">@s.Etiqueta</div>
+                <div class="det-meta">
+                    <span>@s.Momento.ToString("HH:mm:ss.fff")</span>
+                    @if (s.DuracionMs is { } d) { <span>⏱ @Seg(d)</span> }
+                    <span>@Bus.NombreDe(Bus.ConversacionDe(s))</span>
+                    @if (s.SesionMcp is not null) { <span>sesión @s.SesionMcp[..Math.Min(8, s.SesionMcp.Length)]</span> }
+                </div>
+                <pre class="det-json">@(s.Detalle ?? "(sin detalle)")</pre>
+            }
+            else
+            {
+                <div class="det-ayuda">
+                    <p class="fw-semibold">Cómo leer el diagrama</p>
+                    <ul>
+                        <li><span class="ley solida"></span> request · <span class="ley guiones"></span> response · <span class="ley puntos"></span> notificación</li>
+                        <li>La franja verde es el <b>protocolo MCP</b>: todo lo que la cruza es JSON-RPC real capturado por los filtros del servidor.</li>
+                        <li>Las barras verticales muestran quién está trabajando; las que laten siguen abiertas.</li>
+                        <li>Las franjas rayadas <b>⏳</b> son esperas: más alto = más tiempo sin mensajes.</li>
+                        <li>Hacé clic en cualquier flecha para ver el JSON completo.</li>
+                    </ul>
+                </div>
+            }
+        </aside>
+    </div>
+</div>
+
+@code {
+    enum Vista { Secuencia, Tiempo, JsonRpc }
+    const string Seguir = "__seguir__", Todas = "__todas__";
+    const double W = 1200, Gutter = 92, Etiquetas = 360;
+    const int MaxVisibles = 400;
+
+    sealed record Fila(EventoTraza E, double Y, double? GapMs, double GapTop, double GapAlto, bool Ocioso, string? EsperandoA);
+    sealed record Barra(double X, double Y1, double Y2, Actor Actor, bool Abierta);
+    sealed record Tramo(EventoTraza Req, EventoTraza? Resp);
+
+    Vista vista = Vista.Secuencia;
+    string filtro = Seguir;
+    bool mostrarNotificaciones = true, soloMcp, autoScroll = true, pausado;
+    EventoTraza? seleccionado;
+    EventoTraza[] visibles = [];
+    List<string> conversaciones = [];
+    List<Fila> filas = [];
+    List<Barra> barras = [];
+    List<Tramo> tramos = [];
+    double alto = 100;
+    bool refrescoPendiente;
+    long ultimoId;
+    Timer? reloj;
+
+    protected override void OnInitialized()
+    {
+        Bus.Publicado += AlPublicar;
+        Bus.Limpiado += Refrescar;
+        Escenarios.Cambio += Refrescar;
+        // Mientras haya tramos abiertos, la línea de tiempo crece en vivo.
+        reloj = new Timer(_ => { if (!pausado && vista == Vista.Tiempo && tramos.Any(t => t.Resp is null)) Refrescar(); }, null, 250, 250);
+    }
+
+    protected override void OnParametersSet() => Recalcular();
+    protected override bool ShouldRender() { Recalcular(); return true; }
+
+    void AlPublicar(EventoTraza _) { if (!pausado) Refrescar(); }
+
+    void Refrescar()
+    {
+        if (refrescoPendiente) return;
+        refrescoPendiente = true;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Delay(60);
+            refrescoPendiente = false;
+            StateHasChanged();
+        });
+    }
+
+    void Recalcular()
+    {
+        if (pausado && visibles.Length > 0) return;
+        var todos = Bus.Instantanea();
+        conversaciones = todos.Select(Bus.ConversacionDe).Where(c => c != "—").Reverse().Distinct().ToList();
+        var objetivo = filtro switch
+        {
+            Seguir => todos.LastOrDefault(e => Bus.ConversacionDe(e) != "—") is { } ult ? Bus.ConversacionDe(ult) : null,
+            Todas => null,
+            _ => filtro
+        };
+        visibles = todos
+            .Where(e => objetivo is null || Bus.ConversacionDe(e) == objetivo)
+            .Where(e => mostrarNotificaciones || e.Tipo is not (TipoTraza.Notificacion or TipoTraza.Nota))
+            .Where(e => !soloMcp || e.EsMcp)
+            .TakeLast(MaxVisibles)
+            .ToArray();
+        CalcularFilas();
+        CalcularTramos();
+    }
+
+    void CalcularFilas()
+    {
+        filas = new List<Fila>(visibles.Length);
+        double y = 26;
+        DateTimeOffset? previo = null;
+        var enCurso = new Dictionary<string, EventoTraza>(); // requests abiertos mientras recorremos
+        foreach (var e in visibles)
+        {
+            double? gap = null; double gapTop = 0, gapAlto = 0;
+            var ocioso = false;
+            string? esperando = null;
+            if (previo is { } p)
+            {
+                var d = (e.Momento - p).TotalMilliseconds;
+                if (d >= 600)
+                {
+                    // Si nada estaba abierto, es tiempo ocioso (el usuario no escribía): se dibuja más bajo y en gris.
+                    ocioso = enCurso.Count == 0;
+                    esperando = ocioso ? null : string.Join(", ", enCurso.Values
+                        .Where(r => r.Hacia != Actor.Agente || r.Desde != Actor.Usuario)
+                        .Select(r => Nombre(r.Hacia)).Distinct());
+                    gap = d; gapTop = y - 4; gapAlto = ocioso ? 26 : Math.Clamp(d / 40, 22, 130);
+                    y += gapAlto;
+                }
+            }
+            if (e.Correlacion is { } c)
+            {
+                if (e.Tipo == TipoTraza.Request) enCurso[c] = e;
+                else if (e.Tipo == TipoTraza.Response) enCurso.Remove(c);
+            }
+            y += 32;
+            filas.Add(new Fila(e, y, gap, gapTop, gapAlto, ocioso, string.IsNullOrEmpty(esperando) ? "Agente" : esperando));
+            previo = e.Momento;
+        }
+        alto = y + 40;
+
+        barras = [];
+        var abiertas = new Dictionary<string, Fila>();
+        foreach (var f in filas)
+        {
+            if (f.E.Correlacion is not { } c) continue;
+            if (f.E.Tipo == TipoTraza.Request) abiertas[c] = f;
+            else if (f.E.Tipo == TipoTraza.Response && abiertas.Remove(c, out var req))
+                barras.Add(new Barra(X(req.E.Hacia) + (req.E.Desde == req.E.Hacia ? 7 : 0), req.Y, f.Y, req.E.Hacia, false));
+        }
+        foreach (var req in abiertas.Values)
+            if (Bus.EstaAbierto(req.E.Correlacion!))
+                barras.Add(new Barra(X(req.E.Hacia) + (req.E.Desde == req.E.Hacia ? 7 : 0), req.Y, alto - 8, req.E.Hacia, true));
+    }
+
+    void CalcularTramos()
+    {
+        tramos = [];
+        var porCorrelacion = new Dictionary<string, int>();
+        foreach (var e in visibles)
+        {
+            if (e.Correlacion is not { } c) continue;
+            if (e.Tipo == TipoTraza.Request) { porCorrelacion[c] = tramos.Count; tramos.Add(new Tramo(e, null)); }
+            else if (e.Tipo == TipoTraza.Response && porCorrelacion.Remove(c, out var i)) tramos[i] = tramos[i] with { Resp = e };
+        }
+        // Tramos cuyo Request quedó abierto pero ya no lo está (se perdió la respuesta por el filtro): se descartan.
+        tramos = tramos.Where(t => t.Resp is not null || Bus.EstaAbierto(t.Req.Correlacion!)).ToList();
+    }
+
+    (DateTimeOffset t0, double total) Ventana()
+    {
+        var t0 = visibles[0].Momento;
+        var fin = visibles[^1].Momento;
+        if (tramos.Any(t => t.Resp is null)) fin = DateTimeOffset.Now;
+        return (t0, Math.Max(500, (fin - t0).TotalMilliseconds * 1.04));
+    }
+
+    static double TX(double ms, double total) => Etiquetas + ms / total * (W - Etiquetas - 70);
+
+    static IEnumerable<(double t, string rotulo)> Marcas(double total)
+    {
+        double[] pasos = [100, 250, 500, 1000, 2000, 5000, 10000, 15000, 30000, 60000, 120000, 300000];
+        var paso = pasos.FirstOrDefault(p => total / p <= 10, 600000);
+        for (double t = 0; t <= total; t += paso) yield return (t, paso < 1000 ? $"{t:0} ms" : $"{t / 1000:0.#} s");
+    }
+
+    async Task AlternarPausa()
+    {
+        pausado = !pausado;
+        if (!pausado) { visibles = []; Recalcular(); }
+        await Task.CompletedTask;
+    }
+
+    void Limpiar() { seleccionado = null; visibles = []; Bus.Limpiar(); }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var ultimo = visibles.Length > 0 ? visibles[^1].Id : 0;
+        if (autoScroll && ultimo != ultimoId && vista != Vista.Tiempo)
+            try { await JS.InvokeVoidAsync("mcpLab.abajo", "sec-lienzo"); } catch (JSDisconnectedException) { }
+        ultimoId = ultimo;
+    }
+
+    double TotalMs() => visibles.Length < 2 ? 0 : (visibles[^1].Momento - visibles[0].Momento).TotalMilliseconds;
+    double MayorHueco() => filas.Where(f => !f.Ocioso).Max(f => f.GapMs) ?? 0;
+
+    string Rel(EventoTraza e) => visibles.Length == 0 ? "" : $"+{(e.Momento - visibles[0].Momento).TotalSeconds:0.000} s";
+
+    static double X(Actor a) => Gutter + 80 + (int)a * ((W - Gutter - 160) / 5);
+    static string Clase(Actor a) => "a-" + a.ToString().ToLowerInvariant();
+    static string Emoji(Actor a) => a switch
+    {
+        Actor.Usuario => "👤", Actor.Agente => "🤖", Actor.Llm => "🧠", Actor.ClienteMcp => "🔌", Actor.ServidorMcp => "🗄️", Actor.Api => "🌐", _ => ""
+    };
+    static string Nombre(Actor a) => a switch
+    {
+        Actor.Usuario => "Usuario", Actor.Agente => "Agente (host)", Actor.Llm => "LLM", Actor.ClienteMcp => "Cliente MCP",
+        Actor.ServidorMcp => "Servidor MCP", Actor.Api => "MesaYa.Api", _ => a.ToString()
+    };
+    static string Sub(Actor a) => a switch
+    {
+        Actor.Usuario => "navegador", Actor.Agente => "loop agéntico", Actor.Llm => "Ollama local", Actor.ClienteMcp => "McpClient (SDK C#)",
+        Actor.ServidorMcp => "/mcp · tools", Actor.Api => "REST :5080", _ => ""
+    };
+    static string TipoClase(EventoTraza e) => e.Tipo switch
+    {
+        TipoTraza.Request => "req", TipoTraza.Response => "resp", TipoTraza.Notificacion => "notif", _ => "nota"
+    };
+    static string TipoTexto(EventoTraza e) => e.Tipo switch
+    {
+        TipoTraza.Request => "request", TipoTraza.Response => e.Error ? "error" : "response", TipoTraza.Notificacion => "notification", _ => "nota"
+    };
+    static string Seg(double? ms) => ms is not { } v ? "—" : v < 1000 ? $"{v:0} ms" : $"{v / 1000:0.00} s";
+    static string Recortar(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
+
+    public void Dispose()
+    {
+        Bus.Publicado -= AlPublicar;
+        Bus.Limpiado -= Refrescar;
+        Escenarios.Cambio -= Refrescar;
+        reloj?.Dispose();
+    }
+}

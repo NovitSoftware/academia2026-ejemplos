@@ -1,0 +1,73 @@
+@* Formulario genérico para un pedido elicitation/create: se arma a partir del JSON Schema que manda el servidor. *@
+
+@if (Pedido is not null)
+{
+    <div class="modal-fondo">
+        <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="elicit-titulo">
+            <div class="modal-cinta">
+                <span class="badge-mcp">MCP</span>
+                <span>elicitation/create · el <b>servidor</b> le pregunta al usuario a través del <b>cliente</b></span>
+            </div>
+            <h2 id="elicit-titulo" class="modal-titulo">@Pedido.Mensaje</h2>
+
+            @if (Pedido.Schema?.Properties is { Count: > 0 } props)
+            {
+                <div class="modal-campos">
+                    @foreach (var (nombre, def) in props)
+                    {
+                        var etiqueta = def.Title ?? nombre;
+                        <label class="campo">
+                            <span class="campo-nombre">@etiqueta @(Pedido.Schema.Required?.Contains(nombre) == true ? "*" : "")</span>
+                            @switch (def)
+                            {
+                                case ElicitRequestParams.BooleanSchema:
+                                    <input type="checkbox" class="form-check-input" checked="@(Valor(nombre) == "true")"
+                                           @onchange="e => Pedido.Valores[nombre] = (e.Value is true).ToString().ToLowerInvariant()" />
+                                    break;
+                                case ElicitRequestParams.NumberSchema n:
+                                    <input type="number" class="form-control" value="@Valor(nombre)" min="@n.Minimum" max="@n.Maximum"
+                                           @onchange="e => Pedido.Valores[nombre] = e.Value?.ToString()" />
+                                    break;
+                                case ElicitRequestParams.UntitledSingleSelectEnumSchema en:
+                                    <select class="form-select" @onchange="e => Pedido.Valores[nombre] = e.Value?.ToString()">
+                                        <option value="">—</option>
+                                        @foreach (var op in en.Enum) { <option value="@op">@op</option> }
+                                    </select>
+                                    break;
+                                case ElicitRequestParams.TitledSingleSelectEnumSchema te:
+                                    <select class="form-select" @onchange="e => Pedido.Valores[nombre] = e.Value?.ToString()">
+                                        <option value="">—</option>
+                                        @foreach (var op in te.OneOf) { <option value="@op.Const">@op.Title</option> }
+                                    </select>
+                                    break;
+                                default:
+                                    <input type="text" class="form-control" value="@Valor(nombre)"
+                                           @oninput="e => Pedido.Valores[nombre] = e.Value?.ToString()" />
+                                    break;
+                            }
+                            @if (def.Description is { } d) { <small class="campo-ayuda">@d</small> }
+                        </label>
+                    }
+                </div>
+            }
+
+            <details class="modal-schema">
+                <summary>requestedSchema (JSON Schema enviado por el servidor)</summary>
+                <pre>@JsonSerializer.Serialize(Pedido.Schema, ModelContextProtocol.McpJsonUtilities.DefaultOptions)</pre>
+            </details>
+
+            <div class="modal-botones">
+                <button class="btn btn-success" @onclick='() => Resolver.InvokeAsync("accept")'>✔ Aceptar <small>(accept)</small></button>
+                <button class="btn btn-outline-danger" @onclick='() => Resolver.InvokeAsync("decline")'>✖ Rechazar <small>(decline)</small></button>
+                <button class="btn btn-outline-secondary" @onclick='() => Resolver.InvokeAsync("cancel")'>Cerrar <small>(cancel)</small></button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public ElicitacionPendiente? Pedido { get; set; }
+    [Parameter] public EventCallback<string> Resolver { get; set; }
+
+    string? Valor(string nombre) => Pedido?.Valores.GetValueOrDefault(nombre);
+}

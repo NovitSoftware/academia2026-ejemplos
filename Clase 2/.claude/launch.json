@@ -1,0 +1,27 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mesaya-mcp",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "MesaYa.Mcp"
+      ],
+      "port": 5100
+    },
+    {
+      "name": "vscode-vista-previa",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5199",
+        "--directory",
+        "MesaYa.VSCodeExtension"
+      ],
+      "port": 5199
+    }
+  ]
+}

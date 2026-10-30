@@ -1,0 +1,90 @@
+@implements IDisposable
+@using System.Globalization
+
+<aside class="tarjeta metricas-agente" aria-labelledby="metricas-titulo">
+    <div class="metricas-cabecera">
+        <h2 id="metricas-titulo">Consumo y ejecución</h2>
+        <span class="metricas-estado @(Sesion.Ocupado ? "en-curso" : "")">@(Sesion.Ocupado ? "En ejecución" : "Esta conversación")</span>
+    </div>
+    <p class="metricas-modelo">@Sesion.NombreModelo</p>
+
+    <section class="metricas-bloque" aria-labelledby="tokens-titulo">
+        <h3 id="tokens-titulo">Tokens totales</h3>
+        <div class="metricas-total">@Tokens(Sesion.UsoAcumulado?.TokensTotales)</div>
+        <dl class="metricas-desglose">
+            <dt>Entrada</dt><dd>@Tokens(Sesion.UsoAcumulado?.TokensEntrada)</dd>
+            <dt>Salida</dt><dd>@Tokens(Sesion.UsoAcumulado?.TokensSalida)</dd>
+            <dt>Respuestas medidas</dt><dd>@Sesion.RespuestasMedidas.ToString("N0", Cultura)</dd>
+        </dl>
+        @if (Sesion.Modelo is null)
+        {
+            <p class="metricas-ayuda">El guion de demo no consume tokens de Ollama.</p>
+        }
+        else if (Sesion.RespuestasSinMetricas > 0)
+        {
+            <p class="metricas-ayuda">Consumo parcial: @Sesion.RespuestasSinMetricas respuesta(s) sin contadores de Ollama.</p>
+        }
+        else
+        {
+            <p class="metricas-ayuda">Entrada y salida acumuladas, incluidas las llamadas que piden herramientas.</p>
+        }
+    </section>
+
+    <section class="metricas-bloque" aria-labelledby="velocidad-titulo">
+        <h3 id="velocidad-titulo">Velocidad de generación</h3>
+        <div class="metricas-valor">@Velocidad(Sesion.UsoAcumulado?.TokensSalidaPorSegundo) <span>tok/s</span></div>
+        <dl class="metricas-desglose">
+            <dt>Última respuesta</dt><dd>@Velocidad(Sesion.UltimoUso?.TokensSalidaPorSegundo) <span class="metricas-unidad">tok/s</span></dd>
+        </dl>
+        <p class="metricas-ayuda">Promedio según el tiempo de generación de Ollama. Se actualiza al terminar cada respuesta.</p>
+    </section>
+
+    <section class="metricas-bloque" aria-labelledby="ejecucion-titulo">
+        <h3 id="ejecucion-titulo">Tiempo de ejecución</h3>
+        <div class="metricas-valor">@Tiempo(Sesion.DuracionEjecucion)</div>
+        <dl class="metricas-desglose">
+            <dt>@(Sesion.Ocupado ? "Turno actual" : "Último turno")</dt><dd>@Tiempo(Sesion.DuracionUltimoTurno)</dd>
+        </dl>
+        <p class="metricas-ayuda">Suma de los turnos: modelo, herramientas y confirmación humana. Excluye las pausas entre mensajes.</p>
+    </section>
+
+    <p class="metricas-pie">Nueva conversación o cambiar de modelo reinicia las métricas.</p>
+</aside>
+
+@code {
+    /// <summary>Sesión cuyas métricas se muestran y cuyo tiempo activo se refresca.</summary>
+    [Parameter, EditorRequired] public SesionAgente Sesion { get; set; } = default!;
+    static readonly CultureInfo Cultura = CultureInfo.GetCultureInfo("es-AR");
+    Timer? timer;
+    bool disposed;
+
+    protected override void OnParametersSet()
+    {
+        if (Sesion.Ocupado)
+            timer ??= new Timer(RefrescarTiempo, null, 250, 250);
+        else
+        {
+            timer?.Dispose();
+            timer = null;
+        }
+    }
+
+    void RefrescarTiempo(object? state)
+    {
+        if (disposed) return;
+        _ = InvokeAsync(() => { if (!disposed) StateHasChanged(); });
+    }
+
+    string Tokens(long? valor) => valor?.ToString("N0", Cultura) ?? (Sesion.Modelo is null ? "0" : "—");
+    static string Velocidad(double? valor) => valor?.ToString("N1", Cultura) ?? "—";
+    static string Tiempo(TimeSpan valor) => valor.TotalMinutes >= 1
+        ? $"{(int)valor.TotalMinutes} min {valor.Seconds:00} s"
+        : $"{valor.TotalSeconds.ToString("N1", Cultura)} s";
+
+    /// <summary>Detiene la actualización del reloj al salir de la página.</summary>
+    public void Dispose()
+    {
+        disposed = true;
+        timer?.Dispose();
+    }
+}

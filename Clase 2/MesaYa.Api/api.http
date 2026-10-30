@@ -1,0 +1,57 @@
+### Pruebas manuales de la API (Visual Studio, Rider o VS Code con REST Client)
+@base = http://localhost:5080
+@token = demo-agente-token
+@reservaId = RSV-20481
+
+### 1. Disponibilidad (lectura: sin efectos)
+GET {{base}}/v1/disponibilidad?sucursal_id=PAL&fecha=2026-11-06
+
+### 2. Reserva OK -> 201. Ejecutala DOS veces: la segunda devuelve la misma reserva (Idempotent-Replayed)
+POST {{base}}/v1/reservas
+Authorization: Bearer {{token}}
+Idempotency-Key: demo-0001
+Content-Type: application/json
+
+{ "sucursal_id": "BEL", "fecha_hora": "2026-11-07T13:30:00-03:00", "personas": 2, "telefono": "+5491155550123" }
+
+### 3. Turno lleno -> 409 SIN_DISPONIBILIDAD con alternativas
+POST {{base}}/v1/reservas
+Authorization: Bearer {{token}}
+Idempotency-Key: demo-0002
+Content-Type: application/json
+
+{ "sucursal_id": "PAL", "fecha_hora": "2026-11-06T21:00:00-03:00", "personas": 4, "telefono": "+5491155550123" }
+
+### 4. Sucursal fuera del permiso del token -> 403 FORBIDDEN
+POST {{base}}/v1/reservas
+Authorization: Bearer {{token}}
+Idempotency-Key: demo-0003
+Content-Type: application/json
+
+{ "sucursal_id": "CAB", "fecha_hora": "2026-11-07T13:30:00-03:00", "personas": 2, "telefono": "+5491155550123" }
+
+### 5. Sin token -> 401
+POST {{base}}/v1/reservas
+Idempotency-Key: demo-0004
+Content-Type: application/json
+
+{ "sucursal_id": "PAL", "fecha_hora": "2026-11-07T13:30:00-03:00", "personas": 2, "telefono": "+5491155550123" }
+
+### 6. Menú general (público) -> 200 con categorías, platos y precios en ARS
+GET {{base}}/v1/menu
+
+### 7. Menú de Palermo -> 200; una sucursal desconocida devuelve 404
+GET {{base}}/v1/menu?sucursal_id=PAL
+
+### 8. Cancelar la reserva creada en el paso 2 -> 200 con estado "cancelada"
+### Reemplazá reservaId por el reserva_id devuelto al crearla.
+### Ejecutala dos veces: la segunda conserva cancelada_en y agrega Idempotent-Replayed.
+DELETE {{base}}/v1/reservas/{{reservaId}}
+Authorization: Bearer {{token}}
+
+### 9. Cancelar sin token -> 401
+DELETE {{base}}/v1/reservas/{{reservaId}}
+
+### 10. Cancelar una reserva inexistente -> 404
+DELETE {{base}}/v1/reservas/RSV-INEXISTENTE
+Authorization: Bearer {{token}}

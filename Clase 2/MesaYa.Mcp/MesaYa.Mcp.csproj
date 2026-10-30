@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MesaYa.Mcp</RootNamespace>
+    <!-- notifications/message (logging) está deprecado desde la revisión 2026-07-28 del protocolo.
+         Este proyecto negocia 2025-11-25, donde sigue siendo parte del estándar. -->
+    <NoWarn>$(NoWarn);MCP9005</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.3.0" />
+    <ProjectReference Include="../MesaYa.Agent/MesaYa.Agent.csproj" />
+  </ItemGroup>
+</Project>

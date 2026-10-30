@@ -1,0 +1,18 @@
+@implements IDisposable
+<span class="cronometro">@Texto()</span>
+
+@code {
+    [Parameter] public DateTimeOffset Desde { get; set; }
+    Timer? timer;
+
+    protected override void OnInitialized() =>
+        timer = new Timer(_ => InvokeAsync(StateHasChanged), null, 100, 100);
+
+    string Texto()
+    {
+        var ms = (DateTimeOffset.Now - Desde).TotalMilliseconds;
+        return ms < 1000 ? $"{ms:0} ms" : $"{ms / 1000:0.0} s";
+    }
+
+    public void Dispose() => timer?.Dispose();
+}

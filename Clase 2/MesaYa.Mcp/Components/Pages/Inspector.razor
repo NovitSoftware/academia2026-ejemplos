@@ -1,0 +1,293 @@
+@page "/inspector"
+@implements IAsyncDisposable
+@inject BusTraza Bus
+@inject NavigationManager Nav
+@inject IConfiguration Config
+@inject ILoggerFactory LoggerFactory
+
+<PageTitle>Inspector MCP · MesaYa MCP Lab</PageTitle>
+
+<div class="inspector">
+    <div class="tarjeta">
+        <div class="tarjeta-titulo">🔍 Inspector MCP <span class="sub">un cliente MCP manual, sin LLM: lo que ve cualquier host al conectarse</span></div>
+        @if (error is not null)
+        {
+            <div class="aviso-error">@error <button class="btn btn-sm btn-link" @onclick="Conectar">Reintentar</button></div>
+        }
+        else if (cliente is null)
+        {
+            <div class="p-3"><span class="spinner-border spinner-border-sm"></span> Conectando…</div>
+        }
+        else
+        {
+            <div class="insp-servidor">
+                <div><span class="k">serverInfo</span> <b>@(cliente.ServerInfo?.Title ?? cliente.ServerInfo?.Name)</b> <code>@cliente.ServerInfo?.Name@@@cliente.ServerInfo?.Version</code></div>
+                <div><span class="k">protocolVersion</span> <code>@cliente.NegotiatedProtocolVersion</code></div>
+                <div><span class="k">Mcp-Session-Id</span> <code>@cliente.SessionId</code></div>
+                <div><span class="k">capabilities</span> <code>@Capacidades()</code></div>
+                <div class="insp-instr"><span class="k">instructions</span> @cliente.ServerInstructions</div>
+            </div>
+        }
+    </div>
+
+    @if (cliente is not null)
+    {
+        <div class="insp-grid">
+            <div class="tarjeta">
+                <div class="tarjeta-titulo">🛠 Tools <span class="sub">tools/list · @tools.Count</span></div>
+                @foreach (var t in tools)
+                {
+                    var a = t.ProtocolTool.Annotations;
+                    <div class="insp-item @(toolElegida == t ? "activo" : "")">
+                        <div class="insp-item-cabeza">
+                            <code class="nombre">@t.Name</code>
+                            <span class="insp-titulo">@t.Title</span>
+                            @if (a?.ReadOnlyHint == true) { <span class="hint ro">readOnly</span> }
+                            @if (a?.DestructiveHint == true) { <span class="hint de">destructive</span> }
+                            @if (a?.IdempotentHint == true) { <span class="hint id">idempotent</span> }
+                            @if (a?.OpenWorldHint == true) { <span class="hint ow">openWorld</span> }
+                            <button class="btn btn-sm btn-outline-primary ms-auto" @onclick="() => Elegir(t)">Probar</button>
+                        </div>
+                        <div class="insp-desc">@t.Description</div>
+                        <details><summary>inputSchema</summary><pre>@Lindo(t.JsonSchema.GetRawText())</pre></details>
+                        @if (toolElegida == t)
+                        {
+                            <div class="insp-probar">
+                                <label class="small fw-semibold">arguments (JSON)</label>
+                                <textarea class="form-control mono" rows="6" @bind="argumentos"></textarea>
+                                <div class="d-flex gap-2 mt-2 align-items-center">
+                                    <button class="btn btn-sm btn-primary" disabled="@ejecutando" @onclick="Ejecutar">
+                                        @if (ejecutando) { <span class="spinner-border spinner-border-sm"></span> } tools/call
+                                    </button>
+                                    @if (progreso is not null) { <span class="small text-muted"><span class="badge-mcp chico">progress</span> @progreso</span> }
+                                    <a class="small ms-auto" href="secuencia" target="_blank">ver en la secuencia ↗</a>
+                                </div>
+                                @if (resultado is not null)
+                                {
+                                    <pre class="insp-resultado @(resultadoError ? "error" : "")">@resultado</pre>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="d-flex flex-column gap-3">
+                <div class="tarjeta">
+                    <div class="tarjeta-titulo">📦 Resources <span class="sub">resources/list · resources/templates/list</span></div>
+                    @foreach (var r in recursos)
+                    {
+                        <div class="insp-item">
+                            <div class="insp-item-cabeza">
+                                <code class="nombre">@r.Uri</code> <span class="insp-titulo">@r.Title</span>
+                                <button class="btn btn-sm btn-outline-primary ms-auto" @onclick="() => Leer(r.Uri)">Leer</button>
+                            </div>
+                            <div class="insp-desc">@r.Description</div>
+                        </div>
+                    }
+                    @foreach (var r in plantillas)
+                    {
+                        <div class="insp-item">
+                            <div class="insp-item-cabeza">
+                                <code class="nombre">@r.UriTemplate</code> <span class="insp-titulo">@r.Title</span>
+                                <button class="btn btn-sm btn-outline-primary ms-auto" @onclick='() => Leer(r.UriTemplate.Replace("{sucursal_id}", "PAL"))'>Leer (PAL)</button>
+                            </div>
+                            <div class="insp-desc">@r.Description</div>
+                        </div>
+                    }
+                    @if (lectura is not null) { <pre class="insp-resultado">@lectura</pre> }
+                </div>
+
+                <div class="tarjeta">
+                    <div class="tarjeta-titulo">💡 Prompts <span class="sub">prompts/list · prompts/get</span></div>
+                    @foreach (var p in prompts)
+                    {
+                        <div class="insp-item">
+                            <div class="insp-item-cabeza">
+                                <code class="nombre">@p.Name</code> <span class="insp-titulo">@p.Title</span>
+                                <button class="btn btn-sm btn-outline-primary ms-auto" @onclick="() => Obtener(p.Name)">Obtener</button>
+                            </div>
+                            <div class="insp-desc">@p.Description · argumentos: @string.Join(", ", p.ProtocolPrompt.Arguments?.Select(a => a.Name) ?? [])</div>
+                        </div>
+                    }
+                    @if (promptTexto is not null) { <pre class="insp-resultado">@promptTexto</pre> }
+                </div>
+
+                <div class="tarjeta">
+                    <div class="tarjeta-titulo">🔗 Conectar otros clientes MCP <span class="sub">el servidor es estándar</span></div>
+                    <div class="insp-desc">Endpoint Streamable HTTP: <code>@urlMcp</code>. Lo que hagan esos clientes también aparece en la secuencia en vivo.</div>
+                    <div class="small fw-semibold mt-2">MCP Inspector oficial</div>
+                    <pre>npx @@modelcontextprotocol/inspector
+# Transport: Streamable HTTP · URL: @urlMcp</pre>
+                    <div class="small fw-semibold">Claude Code</div>
+                    <pre>claude mcp add --transport http mesaya @urlMcp</pre>
+                    <div class="small fw-semibold">VS Code / Cursor (mcp.json)</div>
+                    <pre>{ "servers": { "mesaya": { "type": "http", "url": "@urlMcp" } } }</pre>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<ElicitacionModal Pedido="elicitacion" Resolver="ResolverElicitacion" />
+
+@code {
+    McpClient? cliente;
+    string? error;
+    IList<McpClientTool> tools = [];
+    IList<McpClientResource> recursos = [];
+    IList<McpClientResourceTemplate> plantillas = [];
+    IList<McpClientPrompt> prompts = [];
+    McpClientTool? toolElegida;
+    string argumentos = "{}";
+    string? resultado, lectura, promptTexto, progreso;
+    bool resultadoError, ejecutando;
+    ElicitacionPendiente? elicitacion;
+    string conversacion = Guid.NewGuid().ToString("N")[..8];
+    string urlMcp = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        urlMcp = (Environment.GetEnvironmentVariable("MCP_URL") ?? Config["Mcp:UrlPublica"] ?? Nav.BaseUri).TrimEnd('/') + "/mcp";
+        Bus.Etiquetar(conversacion, "Inspector manual");
+        await Conectar();
+    }
+
+    async Task Conectar()
+    {
+        error = null;
+        try
+        {
+            if (cliente is not null) await cliente.DisposeAsync();
+            Publicar(Actor.Agente, Actor.ClienteMcp, TipoTraza.Nota, "Inspector: McpClient.CreateAsync()");
+            cliente = await McpClient.CreateAsync(
+                new HttpClientTransport(new HttpClientTransportOptions { Endpoint = new Uri(urlMcp), TransportMode = HttpTransportMode.StreamableHttp }, LoggerFactory),
+                new McpClientOptions
+                {
+                    ClientInfo = new Implementation { Name = "mesaya-inspector", Title = "Inspector manual", Version = "1.0.0" },
+                    ProtocolVersion = "2025-11-25",
+                    Handlers = new McpClientHandlers { ElicitationHandler = Elicitar }
+                }, LoggerFactory);
+            Bus.VincularSesion(cliente.SessionId, conversacion);
+            tools = await cliente.ListToolsAsync();
+            if (cliente.ServerCapabilities.Resources is not null)
+            {
+                recursos = await cliente.ListResourcesAsync();
+                plantillas = await cliente.ListResourceTemplatesAsync();
+            }
+            if (cliente.ServerCapabilities.Prompts is not null) prompts = await cliente.ListPromptsAsync();
+        }
+        catch (Exception e)
+        {
+            error = $"No se pudo conectar a {urlMcp}: {e.Message}";
+        }
+    }
+
+    void Elegir(McpClientTool t)
+    {
+        toolElegida = t;
+        resultado = null;
+        argumentos = Ejemplo(t.Name);
+    }
+
+    async Task Ejecutar()
+    {
+        if (cliente is null || toolElegida is null) return;
+        ejecutando = true; resultado = null; progreso = null;
+        try
+        {
+            var nodo = JsonNode.Parse(string.IsNullOrWhiteSpace(argumentos) ? "{}" : argumentos) as JsonObject ?? [];
+            var args = nodo.ToDictionary(kv => kv.Key, kv => (object?)JsonSerializer.SerializeToElement(kv.Value));
+            var r = await cliente.CallToolAsync(toolElegida.Name, args,
+                new Progreso(v => { progreso = v.Message; InvokeAsync(StateHasChanged); }));
+            resultadoError = r.IsError == true;
+            resultado = BusTraza.Indentar(JsonSerializer.Serialize(r, ModelContextProtocol.McpJsonUtilities.DefaultOptions));
+        }
+        catch (Exception e) { resultadoError = true; resultado = e.Message; }
+        finally { ejecutando = false; progreso = null; }
+    }
+
+    async Task Leer(string uri)
+    {
+        if (cliente is null) return;
+        try
+        {
+            var r = await cliente.ReadResourceAsync(uri);
+            lectura = string.Join("\n", r.Contents.OfType<TextResourceContents>().Select(c => $"{c.Uri} ({c.MimeType})\n{BusTraza.Indentar(c.Text)}"));
+        }
+        catch (Exception e) { lectura = e.Message; }
+    }
+
+    async Task Obtener(string nombre)
+    {
+        if (cliente is null) return;
+        try
+        {
+            var r = await cliente.GetPromptAsync(nombre);
+            promptTexto = string.Join("\n\n", r.Messages.Select(m => $"[{m.Role}] {(m.Content as TextContentBlock)?.Text}"));
+        }
+        catch (Exception e) { promptTexto = e.Message; }
+    }
+
+    async ValueTask<ElicitResult> Elicitar(ElicitRequestParams? p, CancellationToken ct)
+    {
+        var pendiente = new ElicitacionPendiente(p?.Message ?? "", p?.RequestedSchema);
+        await InvokeAsync(() => { elicitacion = pendiente; StateHasChanged(); });
+        using var _ = ct.Register(() => pendiente.Respuesta.TrySetResult(new ElicitResult { Action = "cancel" }));
+        var r = await pendiente.Respuesta.Task;
+        await InvokeAsync(() => { elicitacion = null; StateHasChanged(); });
+        return r;
+    }
+
+    void ResolverElicitacion(string accion)
+    {
+        if (elicitacion is null) return;
+        var contenido = accion == "accept"
+            ? elicitacion.Valores.Where(v => !string.IsNullOrWhiteSpace(v.Value)).ToDictionary(v => v.Key, v => JsonSerializer.SerializeToElement(v.Value))
+            : null;
+        elicitacion.Respuesta.TrySetResult(new ElicitResult { Action = accion, Content = contenido });
+    }
+
+    string Capacidades()
+    {
+        var c = cliente!.ServerCapabilities;
+        var lista = new List<string>();
+        if (c.Tools is not null) lista.Add("tools");
+        if (c.Resources is not null) lista.Add("resources");
+        if (c.Prompts is not null) lista.Add("prompts");
+        if (c.Logging is not null) lista.Add("logging");
+        if (c.Completions is not null) lista.Add("completions");
+        return string.Join(" · ", lista);
+    }
+
+    static string Ejemplo(string tool)
+    {
+        var viernes = DateTime.Today.AddDays(1);
+        while (viernes.DayOfWeek != DayOfWeek.Friday) viernes = viernes.AddDays(1);
+        var f = viernes.ToString("yyyy-MM-dd");
+        return tool switch
+        {
+            "buscar_disponibilidad" => $$"""{ "sucursal_id": "PAL", "fecha": "{{f}}" }""",
+            "consultar_menu" => """{ "sucursal_id": "BEL" }""",
+            "reservar_mesa" => $$"""{ "sucursal_id": "BEL", "fecha_hora": "{{f}}T13:30:00-03:00", "personas": 2, "telefono": "+5491155550123" }""",
+            "cancelar_reserva" => """{ "reserva_id": "RSV-20481" }""",
+            _ => "{}"
+        };
+    }
+
+    void Publicar(Actor desde, Actor hacia, TipoTraza tipo, string etiqueta) =>
+        Bus.Publicar(new EventoTraza { Conversacion = conversacion, Desde = desde, Hacia = hacia, Tipo = tipo, Etiqueta = etiqueta });
+
+    static string Lindo(string json) => BusTraza.Indentar(json);
+
+    public async ValueTask DisposeAsync()
+    {
+        elicitacion?.Respuesta.TrySetResult(new ElicitResult { Action = "cancel" });
+        if (cliente is not null) await cliente.DisposeAsync();
+    }
+
+    sealed class Progreso(Action<ModelContextProtocol.ProgressNotificationValue> accion) : IProgress<ModelContextProtocol.ProgressNotificationValue>
+    {
+        public void Report(ModelContextProtocol.ProgressNotificationValue value) => accion(value);
+    }
+}

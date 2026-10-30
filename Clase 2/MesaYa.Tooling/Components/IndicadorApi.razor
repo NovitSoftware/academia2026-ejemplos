@@ -1,0 +1,45 @@
+@implements IAsyncDisposable
+@inject EstadoApi Api
+
+<div class="api-status @(activa is true ? "api-active" : activa is false ? "api-inactive" : "api-pending")" role="status" aria-live="polite" aria-atomic="true">
+    <span class="api-status-dot" aria-hidden="true"></span>
+    <div><strong>API de reservas</strong><span>@(activa is true ? "Activa" : activa is false ? "No disponible" : "Verificando…")</span></div>
+</div>
+
+@code {
+    readonly CancellationTokenSource vida = new();
+    Task? seguimiento;
+    bool? activa;
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) seguimiento = Supervisar();
+        return Task.CompletedTask;
+    }
+
+    async Task Supervisar()
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+            do
+            {
+                var disponible = await Api.EstaActiva(vida.Token);
+                if (vida.IsCancellationRequested) return;
+                if (activa != disponible)
+                {
+                    activa = disponible;
+                    await InvokeAsync(StateHasChanged);
+                }
+            } while (await timer.WaitForNextTickAsync(vida.Token));
+        }
+        catch (OperationCanceledException) when (vida.IsCancellationRequested) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await vida.CancelAsync();
+        if (seguimiento is not null) await seguimiento;
+        vida.Dispose();
+    }
+}

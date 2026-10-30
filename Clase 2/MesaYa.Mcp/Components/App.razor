@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <title>MesaYa · MCP Lab</title>
+    <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="app.css?v=metricas-sidebar-2" />
+    <link rel="stylesheet" href="MesaYa.Mcp.styles.css" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <HeadOutlet @rendermode="Modo" />
+</head>
+
+<body>
+    <Routes @rendermode="Modo" />
+    <script src="app.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>
+
+@code {
+    // Sin prerender: cada pestaña abre UNA sola sesión MCP, cuando el circuito ya está conectado.
+    static readonly IComponentRenderMode Modo = new InteractiveServerRenderMode(prerender: false);
+}

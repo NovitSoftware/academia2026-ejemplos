@@ -1,0 +1,133 @@
+{
+  "name": "mesaya-vscode",
+  "displayName": "MesaYa · Chat MCP",
+  "description": "Chat con un modelo local de Ollama que usa el servidor MCP de MesaYa para reservar, consultar el menú y cancelar.",
+  "version": "0.1.0",
+  "publisher": "mesaya-demo",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "AI",
+    "Chat"
+  ],
+  "main": "./dist/extension.js",
+  "private": true,
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository -o mesaya-vscode.vsix",
+    "probar": "esbuild scripts/probar.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/probar.mjs --log-level=warning && node dist/probar.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "marked": "^18.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^4.1.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  },
+  "icon": "media/logo.png",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mesaya",
+          "title": "MesaYa",
+          "icon": "media/icono.svg"
+        }
+      ]
+    },
+    "views": {
+      "mesaya": [
+        {
+          "type": "webview",
+          "id": "mesaya.chat",
+          "name": "Chat MCP"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "mesaya.nuevaConversacion",
+        "title": "MesaYa: Nueva conversación",
+        "icon": "$(add)"
+      },
+      {
+        "command": "mesaya.reconectar",
+        "title": "MesaYa: Reconectar al servidor MCP",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "mesaya.abrirSecuencia",
+        "title": "MesaYa: Abrir la secuencia en vivo",
+        "icon": "$(graph-line)"
+      },
+      {
+        "command": "mesaya.verLog",
+        "title": "MesaYa: Ver log MCP",
+        "icon": "$(output)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "mesaya.nuevaConversacion",
+          "when": "view == mesaya.chat",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mesaya.abrirSecuencia",
+          "when": "view == mesaya.chat",
+          "group": "navigation@2"
+        },
+        {
+          "command": "mesaya.reconectar",
+          "when": "view == mesaya.chat",
+          "group": "navigation@3"
+        },
+        {
+          "command": "mesaya.verLog",
+          "when": "view == mesaya.chat",
+          "group": "navigation@4"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MesaYa",
+      "properties": {
+        "mesaya.mcpUrl": {
+          "type": "string",
+          "default": "http://localhost:5100/mcp",
+          "description": "Endpoint Streamable HTTP del servidor MCP."
+        },
+        "mesaya.ollamaUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "URL del servidor de Ollama."
+        },
+        "mesaya.modelo": {
+          "type": "string",
+          "default": "qwen3.5:9b",
+          "description": "Modelo local de Ollama (debe soportar tools)."
+        },
+        "mesaya.toolsEnParalelo": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ejecutar en paralelo varias tool_calls de una misma respuesta del modelo."
+        },
+        "mesaya.mostrarTools": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mostrar en el chat las llamadas al modelo y a las tools MCP (útil para demos). Apagado: solo se ven los mensajes y las confirmaciones."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,304 @@
+@page "/"
+@implements IDisposable
+@inject SesionAgente Sesion
+@inject IJSRuntime JS
+@inject CatalogoOllama Catalogo
+@using System.Globalization
+
+<PageTitle>MesaYa · Agente de reservas</PageTitle>
+
+<div class="workspace">
+    <aside class="sidebar">
+        <a class="brand" href="/" aria-label="MesaYa, inicio"><span class="brand-mark">M</span><span>MesaYa<span class="brand-dot">.</span></span></a>
+        <div class="workspace-label">ESPACIO DEL AGENTE</div>
+        <div class="nav-current"><span>◈</span> Agente de reservas <span class="nav-dot"></span></div>
+        <IndicadorApi />
+
+        <div class="sidebar-section">
+            <label for="agent-mode" class="form-label section-label">MODO DE CONVERSACIÓN</label>
+            <select id="agent-mode" class="form-select" value="@modo" @onchange="CambiarModo" disabled="@(Sesion.Ocupado || cargandoModelos)">
+                <option value="Ollama">Ollama local</option>
+                <option value="Simulado">Demo guiada</option>
+                <option value="Falla503">Demo · error 503</option>
+                <option value="Lento">Demo · timeout</option>
+            </select>
+            <p class="sidebar-help">@(EsOllama ? "Conversá con el modelo que corre en tu equipo." : "Un guion fijo para recorrer el flujo completo del agente.")</p>
+            <button type="button" class="btn btn-outline-secondary w-100 new-chat" @onclick="NuevaConversacion" disabled="@(Sesion.Ocupado || cargandoModelos)"><span>＋</span> Nueva conversación</button>
+        </div>
+
+        @if (EsOllama)
+        {
+            <div class="sidebar-section model-picker">
+                <div class="model-picker-heading"><label for="ollama-model" class="form-label section-label">MODELO LOCAL</label><button type="button" class="refresh-models" @onclick="CargarModelos" disabled="@(Sesion.Ocupado || cargandoModelos)" aria-label="Actualizar modelos instalados" title="Actualizar modelos instalados">↻</button></div>
+                <select id="ollama-model" class="form-select" value="@Sesion.Modelo" title="@Sesion.Modelo" @onchange="CambiarModelo" disabled="@(Sesion.Ocupado || cargandoModelos || modelos.Count == 0)" aria-describedby="model-help">
+                    @if (!modelos.Contains(Sesion.Modelo))
+                    {
+                        <option value="@Sesion.Modelo">@(!modelosCargados || cargandoModelos ? "Buscando modelos…" : modelos.Count == 0 ? "Sin modelos disponibles" : $"{Sesion.Modelo} (no disponible)")</option>
+                    }
+                    @foreach (var modelo in modelos)
+                    {
+                        <option value="@modelo">@modelo</option>
+                    }
+                </select>
+                <div id="model-help" class="model-picker-help" role="status">
+                    @if (errorModelos is not null)
+                    { <p class="model-error">@errorModelos</p> }
+                    else if (modelosCargados && modelos.Count == 0)
+                    { <p>No hay modelos instalados. Descargá uno con <code>ollama pull nombre-del-modelo</code> y actualizá la lista.</p> }
+                    else
+                    { <p>Cambiar el modelo inicia una conversación nueva.</p> }
+                </div>
+            </div>
+        }
+
+        <div class="sidebar-section branches">
+            <div class="section-label mb-3">SUCURSALES</div>
+            <div><span class="branch-code">PAL</span> Palermo</div>
+            <div><span class="branch-code">BEL</span> Belgrano</div>
+            <div><span class="branch-code">CAB</span> Caballito</div>
+            <p class="sidebar-help mt-3">El agente puede reservar en Palermo y Belgrano.</p>
+        </div>
+    </aside>
+
+    <main class="main-area">
+        <header class="topbar"><span>Workspace <span class="breadcrumb-divider">/</span> <strong>Reservas</strong></span><span class="demo-pill">DEMO INTERACTIVA</span></header>
+        <div class="page-content">
+            <div class="page-heading">
+                <div><div class="eyebrow">TU ASISTENTE, EN ACCIÓN</div><h1>Una buena mesa empieza<br class="heading-break" /> con una conversación.</h1><p>Reservas, validaciones y decisiones. Todo a la vista.</p></div>
+                <div class="mode-badge"><span class="status-dot"></span> @NombreModo</div>
+            </div>
+
+            <div class="agent-grid">
+                <section class="panel conversation-panel" aria-labelledby="chat-heading">
+                    <div class="panel-heading"><div class="d-flex align-items-center gap-3"><span class="assistant-icon">M</span><div><h2 id="chat-heading">Asistente MesaYa</h2><div class="panel-subtitle">@(Sesion.Ocupado ? "Turno en curso" : "Listo para conversar")</div></div></div><span class="subtle-badge">@(EsOllama ? "Ollama" : "Simulado")</span></div>
+                    <div id="chat-scroll" class="chat-scroll" role="log" aria-label="Conversación" aria-live="polite">
+                        @if (!Mensajes.Any())
+                        {
+                            <div class="welcome-message"><span class="welcome-icon">✦</span><h3>Hola, soy tu asistente de reservas.</h3><p>Contame dónde, cuándo y para cuántas personas.<br />Yo me encargo de encontrarles una mesa.</p>
+                                <div class="welcome-chips"><span>◷ Fecha y horario</span><span>♧ Cantidad de personas</span><span>⌖ Sucursal</span></div>
+                            </div>
+                            @if (EsOllama)
+                            {
+                                <button type="button" class="suggestion" @onclick="UsarEjemplo"><span>Probá con un ejemplo</span>“Mesa para 4 el viernes en Palermo” <span aria-hidden="true">↗</span></button>
+                            }
+                            else
+                            {
+                                <div class="demo-intro"><strong>El recorrido de la demo</strong><p>Un argumento inválido, un horario sin lugar y una reserva confirmada. Avanzá un turno a la vez.</p></div>
+                            }
+                        }
+                        @foreach (var mensaje in Mensajes)
+                        {
+                            <div class="message-row @(mensaje.Tipo == "Usuario" ? "from-user" : "from-assistant")"><div class="message"><div class="message-author">@(mensaje.Tipo == "Usuario" ? "VOS" : "MESAYA")</div><div class="message-text">@mensaje.Texto</div></div></div>
+                        }
+                        @if (Sesion.Ocupado)
+                        {
+                            <div class="working-status" role="status"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> @(Sesion.ReservaPendiente is null ? "El agente está trabajando…" : "Esperando tu confirmación…")</div>
+                        }
+                    </div>
+
+                    @if (Sesion.ReservaPendiente is { } reserva)
+                    {
+                        <div class="confirmation" role="region" aria-labelledby="confirmation-title">
+                            <div class="confirmation-label">CONFIRMACIÓN NECESARIA</div><h3 id="confirmation-title">¿Reservamos esta mesa?</h3>
+                            <div class="reservation-summary"><span><strong>@reserva["personas"] personas</strong> · @Sucursal(reserva["sucursal_id"]!.ToString())</span><span>@Fecha(reserva["fecha_hora"]!.ToString())</span><span>Celular: @reserva["telefono"]</span></div>
+                            @if (reserva["nota"] is { } nota) { <p class="small mb-3">Nota: @nota</p> }
+                            <div class="d-flex flex-wrap gap-2"><button type="button" class="btn btn-primary" @onclick="() => Sesion.Confirmar(true)">Confirmar reserva</button><button type="button" class="btn btn-outline-secondary" @onclick="() => Sesion.Confirmar(false)">Rechazar</button></div>
+                        </div>
+                    }
+
+                    <div class="composer">
+                        @if (EsOllama)
+                        {
+                            <form @onsubmit="Enviar" @onsubmit:preventDefault>
+                                <label for="message-input" class="visually-hidden">Tu mensaje</label>
+                                <div class="input-group"><input id="message-input" class="form-control" placeholder="Escribí tu pedido de reserva…" @bind="entrada" @bind:event="oninput" disabled="@(Sesion.Ocupado || !ModeloDisponible)" autocomplete="off" /><button type="submit" class="btn btn-primary send-button" disabled="@(Sesion.Ocupado || !ModeloDisponible || string.IsNullOrWhiteSpace(entrada))" aria-label="Enviar mensaje">Enviar <span aria-hidden="true">↑</span></button></div>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="demo-next"><p>@(Sesion.DemoTerminada ? "Demo finalizada. Podés iniciar una nueva conversación." : Sesion.MensajeDemo)</p><button type="button" class="btn btn-primary w-100" @onclick="Enviar" disabled="@(Sesion.Ocupado || Sesion.DemoTerminada)">@(Sesion.DemoTerminada ? "Recorrido completo" : Mensajes.Any() ? "Continuar demo →" : "Iniciar demo →")</button></div>
+                        }
+                        <div class="composer-note"><span aria-hidden="true">◇</span> Cada reserva necesita tu confirmación antes de ejecutarse.</div>
+                    </div>
+                </section>
+
+                <section class="panel activity-panel" aria-labelledby="activity-heading">
+                    <div class="panel-heading"><div><h2 id="activity-heading">Detrás de la conversación</h2><div class="panel-subtitle">El recorrido de cada decisión del agente</div></div><span class="event-count">@Actividad.Count()</span></div>
+                    <div class="activity-tabs" role="group" aria-label="Vista del panel técnico"><button type="button" class="@(verContrato ? "" : "selected")" @onclick="() => verContrato = false" aria-pressed="@((!verContrato).ToString().ToLowerInvariant())">Actividad</button><button type="button" class="@(verContrato ? "selected" : "")" @onclick="() => verContrato = true" aria-pressed="@(verContrato.ToString().ToLowerInvariant())">Contrato de tools</button></div>
+                    @if (verContrato)
+                    {
+                        <div class="contract-view"><p>El modelo conoce estas herramientas a través de su JSON Schema.</p><pre>@Herramientas.Definiciones().ToJsonString(Json.Lindo)</pre></div>
+                    }
+                    else
+                    {
+                        <div id="activity-scroll" class="activity-scroll" role="log" aria-label="Actividad del agente" aria-live="polite">
+                            @if (!Actividad.Any())
+                            {
+                                <div class="activity-empty"><div class="flow-icon">↳</div><h3>Cada paso tiene su lugar.</h3><p>Acá vas a ver las tools, las validaciones<br />y las respuestas de la API en tiempo real.</p><div class="flow-steps"><span>Modelo</span><i>→</i><span>Tool</span><i>→</i><span>API</span></div></div>
+                            }
+                            @foreach (var evento in Actividad)
+                            {
+                                <div class="activity-event @(evento.Error ? "event-error" : "")"><div class="event-heading"><span class="event-label event-@evento.Tipo.ToLowerInvariant()">@Etiqueta(evento)</span>@if (evento.Error) { <span class="error-label">ERROR</span> }</div>
+                                    @if (evento.Tipo is "Tool" or "Resultado" || evento.Texto.TrimStart().StartsWith('{') || evento.Texto.TrimStart().StartsWith('['))
+                                    { <pre>@evento.Texto</pre> }
+                                    else { <p>@evento.Texto</p> }
+                                </div>
+                            }
+                        </div>
+                    }
+                    <div class="activity-footer"><span class="status-dot"></span> Validación sintáctica · semántica · seguridad</div>
+                </section>
+            </div>
+            <footer class="page-footer"><span>MesaYa · Laboratorio de agentes</span><span>El modelo propone. El host valida. Vos confirmás.</span></footer>
+        </div>
+    </main>
+
+    <aside class="metrics-sidebar" aria-label="Modelo y consumo de tokens">
+        <div class="metrics-model"><span class="status-dot"></span> @(EsOllama ? "Modelo local" : "Modo simulado")<br /><span class="model-name">@(EsOllama ? Sesion.Modelo : NombreModo)</span></div>
+        <section class="token-usage" aria-labelledby="token-usage-title">
+            <h2 id="token-usage-title">Consumo de tokens</h2>
+            @if (!EsOllama)
+            {
+                <p class="token-help">El modo simulado no consume tokens de Ollama.</p>
+            }
+            else if (Sesion.UsoAcumulado is { } acumulado && Sesion.UltimoUso is { } ultimo)
+            {
+                <div class="token-total"><span>Total medido de la conversación</span><strong>@Numero(acumulado.TokensTotales)</strong></div>
+                <dl class="token-breakdown">
+                    <dt>Entrada</dt><dd>@Numero(acumulado.TokensEntrada)</dd>
+                    <dt>Salida</dt><dd>@Numero(acumulado.TokensSalida)</dd>
+                    <dt>Respuestas medidas</dt><dd>@Numero(Sesion.RespuestasMedidas)</dd>
+                </dl>
+                <div class="token-speed"><span>Generación · última medición</span><strong>@Velocidad(ultimo.TokensSalidaPorSegundo) <small>tok/s</small></strong></div>
+                <dl class="token-breakdown"><dt>Promedio de generación</dt><dd>@Velocidad(acumulado.TokensSalidaPorSegundo) <span class="token-unit">tok/s</span></dd></dl>
+                <section class="token-details" aria-labelledby="token-details-title">
+                    <h3 id="token-details-title" class="token-details-title">Desglose y tiempos</h3>
+                    <h4>Última respuesta medida</h4>
+                    <dl class="token-breakdown">
+                        <dt>Tokens de entrada</dt><dd>@Numero(ultimo.TokensEntrada)</dd>
+                        <dt>Tokens de salida</dt><dd>@Numero(ultimo.TokensSalida)</dd>
+                        @if (ultimo.TokensEntradaCache is { } cache)
+                        {
+                            <dt>Entrada desde caché</dt><dd>@Numero(cache)</dd>
+                            <dt>Entrada sin caché</dt><dd>@Numero(ultimo.TokensEntradaSinCache!.Value)</dd>
+                        }
+                        <dt>Carga del modelo</dt><dd>@Tiempo(ultimo.DuracionCargaNs)</dd>
+                        <dt>Evaluación de entrada</dt><dd>@Tiempo(ultimo.DuracionEntradaNs)</dd>
+                        <dt>Generación de salida</dt><dd>@Tiempo(ultimo.DuracionSalidaNs)</dd>
+                    </dl>
+                    <div class="token-total"><span>Tiempo total de Ollama</span><strong>@Tiempo(ultimo.DuracionTotalNs)</strong></div>
+                    @if (acumulado.TokensEntradaCache is { } cacheTotal)
+                    {
+                        <h4>Caché de la conversación</h4>
+                        <dl class="token-breakdown"><dt>Entrada desde caché</dt><dd>@Numero(cacheTotal)</dd><dt>Entrada sin caché</dt><dd>@Numero(acumulado.TokensEntradaSinCache!.Value)</dd></dl>
+                    }
+                    else
+                    {
+                        <p class="token-help">El desglose de caché no está disponible para todas las respuestas.</p>
+                    }
+                    <p class="token-help">La entrada incluye instrucciones, tools e historial reenviado. La caché es parte de la entrada y no se suma otra vez al total.</p>
+                </section>
+                <p class="token-help token-update">@(Sesion.Ocupado ? "Se actualizará al terminar la respuesta actual." : "Datos informados por Ollama al finalizar cada respuesta.")</p>
+            }
+            else
+            {
+                <p class="token-help">@(Sesion.Ocupado ? "Esperando métricas de Ollama…" : Mensajes.Any() ? "Ollama todavía no informó contadores de tokens para esta conversación." : "Enviá un mensaje para ver el consumo y la velocidad de generación.")</p>
+            }
+        </section>
+    </aside>
+</div>
+
+@code {
+    string modo = "Ollama";
+    string entrada = "";
+    bool verContrato;
+    bool disposed;
+    bool cargandoModelos;
+    bool modelosCargados;
+    string? errorModelos;
+    IReadOnlyList<string> modelos = Array.Empty<string>();
+    readonly CancellationTokenSource vida = new();
+    bool ModeloDisponible => !cargandoModelos && modelos.Contains(Sesion.Modelo);
+    bool EsOllama => Sesion.Modo == "Ollama";
+    string NombreModo => Sesion.Modo switch { "Simulado" => "Demo guiada", "Falla503" => "Demo · error 503", "Lento" => "Demo · timeout", _ => "Ollama local" };
+    IEnumerable<EventoAgente> Mensajes => Sesion.Eventos.Where(e => e.Tipo is "Usuario" or "Modelo");
+    IEnumerable<EventoAgente> Actividad => Sesion.Eventos.Where(e => e.Tipo is not ("Usuario" or "Modelo"));
+
+    protected override void OnInitialized()
+    {
+        Sesion.NuevaConversacion(modo);
+        Sesion.Cambio += Actualizar;
+    }
+
+    void Actualizar() { if (!disposed) _ = InvokeAsync(StateHasChanged); }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await CargarModelos();
+        if (disposed) return;
+        try { await JS.InvokeVoidAsync("mesaYaScroll"); }
+        catch (JSDisconnectedException) { }
+    }
+
+    async Task CargarModelos()
+    {
+        if (cargandoModelos || Sesion.Ocupado || disposed) return;
+        cargandoModelos = true;
+        errorModelos = null;
+        StateHasChanged();
+        try
+        {
+            var disponibles = await Catalogo.Listar(vida.Token);
+            if (disposed) return;
+            modelos = disponibles;
+            if (!Sesion.Ocupado && Sesion.Eventos.Count == 0 && modelos.Count > 0 && !modelos.Contains(Sesion.Modelo))
+                Sesion.CambiarModelo(modelos[0]);
+        }
+        catch (OperationCanceledException) when (disposed) { }
+        catch (Exception e) when (e is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException)
+        {
+            errorModelos = "No se pudieron consultar los modelos. Verificá que Ollama esté corriendo y actualizá la lista.";
+        }
+        finally
+        {
+            cargandoModelos = false;
+            modelosCargados = true;
+            if (!disposed) StateHasChanged();
+        }
+    }
+
+    void CambiarModelo(ChangeEventArgs args)
+    {
+        var nombre = args.Value?.ToString();
+        if (nombre is null || !modelos.Contains(nombre) || Sesion.Ocupado || cargandoModelos) return;
+        Sesion.CambiarModelo(nombre);
+        entrada = "";
+    }
+
+    async Task Enviar()
+    {
+        if (EsOllama && !ModeloDisponible) return;
+        var texto = entrada;
+        entrada = "";
+        await Sesion.Enviar(texto);
+    }
+
+    void CambiarModo(ChangeEventArgs args)
+    {
+        modo = args.Value?.ToString() ?? "Ollama";
+        NuevaConversacion();
+    }
+
+    void NuevaConversacion() { Sesion.NuevaConversacion(modo); entrada = ""; }
+    void UsarEjemplo() => entrada = "Hola, quiero una mesa para 4 el viernes a las 21 en Palermo. Mi celular es +5491155550123.";
+    static string Sucursal(string codigo) => codigo switch { "PAL" => "Palermo", "BEL" => "Belgrano", "CAB" => "Caballito", _ => codigo };
+    static string Fecha(string valor) => DateTimeOffset.Parse(valor).ToOffset(TimeSpan.FromHours(-3)).ToString("dd/MM/yyyy · HH:mm 'hs'");
+    static string Etiqueta(EventoAgente e) => e.Tipo switch { "Tool" => "TOOL USE", "Valida" => "VALIDACIÓN", "Http" => "HTTP", "Resultado" => "TOOL RESULT", _ => "HOST" };
+    static readonly CultureInfo FormatoMetricas = CultureInfo.GetCultureInfo("es-AR");
+    static string Numero(long valor) => valor.ToString("N0", FormatoMetricas);
+    static string Velocidad(double? valor) => valor?.ToString("N1", FormatoMetricas) ?? "—";
+    static string Tiempo(long? nanosegundos) => nanosegundos is { } ns
+        ? $"{(ns / 1_000_000_000d).ToString("N3", FormatoMetricas)} s" : "—";
+
+    public void Dispose() { disposed = true; Sesion.Cambio -= Actualizar; vida.Cancel(); vida.Dispose(); }
+}

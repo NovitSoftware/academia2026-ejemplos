@@ -1,0 +1,9 @@
+src/**
+node_modules/**
+scripts/**
+.vscode/**
+tsconfig.json
+esbuild.mjs
+**/*.map
+*.vsix
+dist/probar.mjs

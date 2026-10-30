@@ -1,0 +1,6 @@
+bin/
+obj/
+.vs/
+*.user
+.logs/
+MesaYa.VSCodeExtension/node_modules/

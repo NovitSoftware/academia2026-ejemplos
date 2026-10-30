@@ -1,0 +1,22 @@
+@page "/Error"
+@using System.Diagnostics
+
+<PageTitle>MesaYa · No se pudo cargar la página</PageTitle>
+
+<main class="container py-5">
+    <div class="card border-0 shadow-sm mx-auto p-4" style="max-width: 560px">
+        <h1 class="mb-3">No pudimos cargar la página.</h1>
+        <p>Volvé a iniciar la conversación. Si el problema continúa, revisá los logs del servidor.</p>
+        @if (!string.IsNullOrEmpty(RequestId))
+        {
+            <p class="small text-muted">Referencia: <code>@RequestId</code></p>
+        }
+        <a class="btn btn-primary align-self-start" href="/">Volver a MesaYa</a>
+    </div>
+</main>
+
+@code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+    string? RequestId;
+    protected override void OnInitialized() => RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

@@ -1,0 +1,282 @@
+@page "/"
+@implements IAsyncDisposable
+@inject SesionAgente Sesion
+@inject CatalogoOllama Catalogo
+@inject Escenarios Escenarios
+@inject IConfiguration Config
+@inject IJSRuntime JS
+
+<PageTitle>Agente · MesaYa MCP Lab</PageTitle>
+
+<div class="agente-grid">
+    <!-- ============ Columna izquierda: configuración + chat ============ -->
+    <section class="col-izq">
+        <div class="tarjeta config">
+            <div class="config-fila">
+                <label class="config-label" for="modelo">Modelo local</label>
+                <div class="d-flex gap-2 flex-grow-1">
+                    <select id="modelo" class="form-select form-select-sm" value="@valorModelo" disabled="@Sesion.Ocupado"
+                            @onchange="CambiarModelo">
+                        <option value="@Guion">🎬 Guion de demo (sin LLM)</option>
+                        @foreach (var m in modelos)
+                        {
+                            <option value="@m.Nombre">@(m.SoportaTools ? "🛠" : "⛔") @m.Nombre @(m.Tamano is null ? "" : $"· {m.Tamano}") @(m.SoportaTools ? "" : "· sin tools")</option>
+                        }
+                    </select>
+                    <button class="btn btn-sm btn-outline-secondary" title="Actualizar la lista de Ollama" @onclick="CargarModelos" disabled="@Sesion.Ocupado">↻</button>
+                </div>
+            </div>
+            @if (errorOllama is not null)
+            {
+                <div class="aviso-error">Ollama: @errorOllama</div>
+            }
+            else if (Sesion.Modelo is { SoportaTools: false })
+            {
+                <div class="aviso-error">Este modelo no declara soporte de <b>tools</b> en Ollama: no va a poder usar el servidor MCP.</div>
+            }
+
+            <div class="config-fila">
+                <label class="config-label" for="escenario">Escenario</label>
+                <select id="escenario" class="form-select form-select-sm" value="@Escenarios.Actual"
+                        @onchange="e => Escenarios.Cambiar(Enum.Parse<Escenario>(e.Value!.ToString()!))">
+                    @foreach (var e in Enum.GetValues<Escenario>())
+                    {
+                        <option value="@e">@Escenarios.Describir(e)</option>
+                    }
+                </select>
+            </div>
+
+            <div class="config-fila">
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="paralelo" checked="@Sesion.ToolsEnParalelo"
+                           @onchange="e => Sesion.ToolsEnParalelo = e.Value is true" />
+                    <label class="form-check-label small" for="paralelo">Ejecutar tool_calls en paralelo</label>
+                </div>
+                <div class="ms-auto d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" @onclick="Sesion.NuevaConversacion" disabled="@Sesion.Ocupado">Nueva conversación</button>
+                    <a class="btn btn-sm btn-primary" href="secuencia" target="_blank" rel="noopener">📈 Abrir secuencia ↗</a>
+                </div>
+            </div>
+
+            <div class="estado-mcp @(Sesion.Cliente is null ? "off" : "on")">
+                @if (Sesion.Conectando)
+                {
+                    <span class="punto"></span> <span>Conectando al servidor MCP…</span>
+                }
+                else if (Sesion.Cliente is { } c)
+                {
+                    <span class="punto"></span>
+                    <span><b>@Sesion.Etiqueta</b> conectado a <b>@(c.ServerInfo?.Title ?? c.ServerInfo?.Name)</b></span>
+                    <span class="chip">sesión @c.SessionId?[..Math.Min(8, c.SessionId.Length)]</span>
+                    <span class="chip">protocolo @c.NegotiatedProtocolVersion</span>
+                    <span class="chip">@Sesion.Tools.Count tools</span>
+                }
+                else
+                {
+                    <span class="punto"></span> <span>@(Sesion.ErrorConexion ?? "Sin conexión MCP")</span>
+                    <button class="btn btn-sm btn-link p-0 ms-2" @onclick="Sesion.NuevaConversacion">Reintentar</button>
+                }
+            </div>
+        </div>
+
+        <div class="tarjeta chat">
+            <div class="tarjeta-titulo">💬 Conversación</div>
+            <div class="chat-scroll" id="chat-scroll">
+                @if (Sesion.Chat.Length == 0)
+                {
+                    <div class="chat-vacio">
+                        <p>Pedile algo al agente. El modelo decide qué <b>tools MCP</b> usar; el servidor MCP las ejecuta contra <b>MesaYa.Api</b>.</p>
+                    </div>
+                }
+                @foreach (var m in Sesion.Chat)
+                {
+                    <div class="burbuja @m.Rol">@m.Texto</div>
+                }
+                @if (Sesion.Ocupado)
+                {
+                    <div class="burbuja assistant pensando"><span></span><span></span><span></span></div>
+                }
+            </div>
+            <div class="sugerencias">
+                @foreach (var s in Sugerencias())
+                {
+                    <button class="sugerencia" disabled="@Sesion.Ocupado" @onclick="() => Enviar(s)">@s</button>
+                }
+            </div>
+            <form class="chat-input" @onsubmit="() => Enviar(entrada)" @onsubmit:preventDefault>
+                <input class="form-control" placeholder="Escribí tu pedido…" @bind="entrada" @bind:event="oninput" disabled="@Sesion.Ocupado" />
+                @if (Sesion.Ocupado)
+                {
+                    <button type="button" class="btn btn-outline-danger" @onclick="Sesion.Detener">■ Detener</button>
+                }
+                else
+                {
+                    <button type="submit" class="btn btn-primary" disabled="@(string.IsNullOrWhiteSpace(entrada) || Sesion.Cliente is null)">Enviar</button>
+                }
+            </form>
+        </div>
+    </section>
+
+    <!-- ============ Columna central: tool calling ============ -->
+    <section class="col-der">
+        <div class="tarjeta toolcalling">
+            <div class="tarjeta-titulo">
+                🛠 Tool calling
+                <span class="sub">modelo → <span class="badge-mcp">MCP</span> tools/call → servidor → API</span>
+            </div>
+            <div class="pasos-scroll" id="pasos-scroll">
+                @{ int? iterActual = null; }
+                @foreach (var p in Sesion.Pasos)
+                {
+                    if (p.Iteracion != iterActual && p.Tipo != TipoPaso.Conexion)
+                    {
+                        iterActual = p.Iteracion;
+                        <div class="iteracion">Iteración @p.Iteracion del loop agéntico</div>
+                    }
+                    <div class="paso @p.Tipo.ToString().ToLowerInvariant() @p.Estado.ToString().ToLowerInvariant()" @key="p">
+                        <div class="paso-cabeza">
+                            <span class="paso-icono">@Icono(p.Tipo)</span>
+                            <div class="paso-textos">
+                                <div class="paso-titulo">
+                                    @if (p.Tipo == TipoPaso.Tool) { <span class="badge-mcp">tools/call</span> }
+                                    @if (p.Tipo == TipoPaso.Elicitacion) { <span class="badge-mcp">server → client</span> }
+                                    <code>@p.Titulo</code>
+                                </div>
+                                @if (p.Subtitulo is not null) { <div class="paso-sub">@p.Subtitulo</div> }
+                            </div>
+                            <span class="paso-tiempo">
+                                @if (p.Estado == EstadoPaso.EnCurso) { <span class="spinner-border spinner-border-sm"></span> <Cronometro Desde="p.Inicio" /> }
+                                else { @Duracion(p.DuracionMs) }
+                            </span>
+                        </div>
+                        @if (p.Progreso is not null)
+                        {
+                            <div class="paso-progreso"><span class="badge-mcp chico">notifications/progress</span> @p.Progreso</div>
+                        }
+                        @if (p.Tipo == TipoPaso.Tool && p.Avisos.Count > 0 && p.Estado != EstadoPaso.EnCurso)
+                        {
+                            <div class="paso-avisos">@p.Avisos.Count avisos de progreso recibidos durante la ejecución</div>
+                        }
+                        <div class="paso-cuerpo">
+                            @if (p.Entrada is not null)
+                            {
+                                <details open="@(p.Tipo is TipoPaso.Tool or TipoPaso.Elicitacion)">
+                                    <summary>@(p.Tipo switch { TipoPaso.Llm => "Pedido al modelo (POST /api/chat)", TipoPaso.Tool => "arguments", _ => "Mensaje" })</summary>
+                                    <pre>@p.Entrada</pre>
+                                </details>
+                            }
+                            @if (p.Salida is not null)
+                            {
+                                <details open="@(p.Tipo != TipoPaso.Llm)">
+                                    <summary>@(p.Tipo switch { TipoPaso.Llm => "Respuesta del modelo", TipoPaso.Tool => "CallToolResult.content", _ => "Resultado" })</summary>
+                                    <pre>@p.Salida</pre>
+                                </details>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="tarjeta logs">
+            <div class="tarjeta-titulo">📜 Logs del servidor MCP <span class="sub"><span class="badge-mcp chico">notifications/message</span></span></div>
+            <div class="logs-scroll" id="logs-scroll">
+                @if (Sesion.LogsServidor.Length == 0) { <div class="text-muted small">Todavía no hay logs.</div> }
+                @foreach (var l in Sesion.LogsServidor) { <div>@l</div> }
+            </div>
+        </div>
+    </section>
+
+    <MetricasAgente Sesion="Sesion" />
+</div>
+
+<ElicitacionModal Pedido="Sesion.Elicitacion" Resolver="Sesion.ResolverElicitacion" />
+
+@code {
+    const string Guion = "__guion__";
+    IReadOnlyList<ModeloLocal> modelos = [];
+    string? errorOllama;
+    string valorModelo = Guion;
+    string entrada = "";
+    bool refrescoPendiente;
+    int ultimoConteo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.Cambio += Refrescar;
+        Escenarios.Cambio += Refrescar;
+        await CargarModelos();
+        var inicial = Environment.GetEnvironmentVariable("OLLAMA_MODEL") ?? Config["Ollama:ModeloInicial"];
+        var elegido = modelos.FirstOrDefault(m => m.Nombre == inicial && m.SoportaTools) ?? modelos.FirstOrDefault(m => m.SoportaTools);
+        valorModelo = elegido?.Nombre ?? Guion;
+        await Sesion.UsarModelo(elegido);
+    }
+
+    async Task CargarModelos()
+    {
+        try { modelos = await Catalogo.Listar(); errorOllama = null; }
+        catch (Exception e) { modelos = []; errorOllama = $"{e.Message} — podés usar el guion de demo."; }
+    }
+
+    async Task CambiarModelo(ChangeEventArgs e)
+    {
+        valorModelo = e.Value?.ToString() ?? Guion;
+        await Sesion.UsarModelo(modelos.FirstOrDefault(m => m.Nombre == valorModelo));
+    }
+
+    async Task Enviar(string texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || Sesion.Ocupado) return;
+        entrada = "";
+        await Sesion.Enviar(texto);
+    }
+
+    IEnumerable<string> Sugerencias()
+    {
+        if (Sesion.Modelo is null)
+            return Sesion.TurnosDeGuion < ModeloGuion.MensajesSugeridos.Length ? [ModeloGuion.MensajesSugeridos[Sesion.TurnosDeGuion]] : [];
+        return
+        [
+            "Quiero una mesa para 4 el viernes a las 21 en Palermo, mi cel es +5491155550123",
+            "¿Qué horarios hay el sábado en Palermo, Belgrano y Caballito?",
+            "¿Qué platos vegetarianos tienen?",
+            "Reservá para 2 en Caballito mañana a las 13:30, cel +5491155550123"
+        ];
+    }
+
+    void Refrescar()
+    {
+        if (refrescoPendiente) return;
+        refrescoPendiente = true;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Delay(50);
+            refrescoPendiente = false;
+            StateHasChanged();
+        });
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var conteo = Sesion.Pasos.Length + Sesion.Chat.Length + Sesion.LogsServidor.Length + (Sesion.Ocupado ? 1 : 0);
+        if (conteo != ultimoConteo)
+        {
+            ultimoConteo = conteo;
+            try { await JS.InvokeVoidAsync("mcpLab.abajo", "chat-scroll", "pasos-scroll", "logs-scroll"); } catch (JSDisconnectedException) { }
+        }
+    }
+
+    static string Icono(TipoPaso t) => t switch
+    {
+        TipoPaso.Conexion => "🔌", TipoPaso.Llm => "🧠", TipoPaso.Tool => "🛠", TipoPaso.Elicitacion => "🙋", _ => "•"
+    };
+
+    static string Duracion(double? ms) => ms is null ? "" : ms < 1000 ? $"{ms:0} ms" : $"{ms / 1000:0.00} s";
+
+    public ValueTask DisposeAsync()
+    {
+        Sesion.Cambio -= Refrescar;
+        Escenarios.Cambio -= Refrescar;
+        return ValueTask.CompletedTask;
+    }
+}
