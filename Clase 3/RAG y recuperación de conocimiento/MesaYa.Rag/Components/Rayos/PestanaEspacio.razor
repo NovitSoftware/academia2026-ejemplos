@@ -1,0 +1,127 @@
+@* Pestaña Espacio (slide 04): significado como distancia. Los chunks del corpus y la consulta en 2D. *@
+@using MesaYa.Rag.Espacio
+@using Npgsql
+@inject Proyector Proyector
+
+@if (error is not null)
+{
+    <p class="error">@error</p>
+}
+else if (Turno.Busqueda?.VectorConsulta is null)
+{
+    <p class="vacio">@(Turno.Busqueda is null ? "Buscando…" : "La búsqueda por palabras clave no usa embeddings: no hay consulta para ubicar en el espacio.")</p>
+}
+else if (proyeccion is null)
+{
+    <p class="vacio">Proyectando los embeddings…</p>
+}
+else
+{
+    <p class="leyenda">
+        Cada punto es un chunk (@Turno.Opciones.Estrategia) y la estrella es la consulta. Las líneas van a los
+        @Turno.Seleccionados.Count fragmentos que entraron al contexto. Es una proyección ilustrativa: dos ejes de PCA
+        conservan el @proyeccion.VarianzaExplicada.ToString("P0") de la variación de 1024 dimensiones, así que la
+        distancia real es la de la pestaña Ranking.
+    </p>
+
+    <svg class="espacio" viewBox="0 0 @Ancho @Alto" role="img" aria-label="Proyección 2D de los embeddings">
+        @foreach (var s in seleccionados)
+        {
+            <line x1="@X(consulta.X)" y1="@Y(consulta.Y)" x2="@X(s.X)" y2="@Y(s.Y)" class="enlace" />
+        }
+        @foreach (var p in proyeccion.Puntos)
+        {
+            var visible = Visible(p);
+            var elegido = seleccionadosIds.Contains(p.Id);
+            <circle cx="@X(p.X)" cy="@Y(p.Y)" r="@(elegido ? "7" : "4.5")"
+                    class="punto @(elegido ? "elegido" : "") @(visible ? "" : "oculto")"
+                    style="fill: var(--area-@Areas.IndexOf(p.Area))">
+                <title>@p.DocumentId · @(p.Seccion.Split(" › ").Skip(1).FirstOrDefault() ?? "(intro)")@(visible ? "" : " · fuera de los filtros de este turno")</title>
+            </circle>
+        }
+        <path d="@Estrella(X(consulta.X), Y(consulta.Y), 11)" class="consulta">
+            <title>Consulta: «@Turno.Consulta»</title>
+        </path>
+    </svg>
+
+    <ul class="leyenda-areas">
+        @foreach (var (area, i) in Areas.Select((a, i) => (a, i)))
+        {
+            <li><span class="muestra" style="background: var(--area-@i)"></span>@NombreArea(area)</li>
+        }
+        <li><span class="muestra oculto"></span>Fuera de los filtros (otro tenant, otra audiencia o deprecated)</li>
+    </ul>
+}
+
+@code {
+    [Parameter, EditorRequired] public TurnoRag Turno { get; set; } = default!;
+
+    const double Ancho = 640, Alto = 420, Margen = 24;
+
+    static readonly List<string> Areas =
+        ["atencion-al-cliente", "sistema-de-reservas", "operaciones", "recursos-humanos", "gerencia", "marketing", "administracion"];
+
+    Proyeccion? proyeccion;
+    string? error;
+    (double X, double Y) consulta;
+    List<PuntoChunk> seleccionados = [];
+    HashSet<long> seleccionadosIds = [];
+    double minX, maxX, minY, maxY;
+    TurnoRag? calculado;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Turno.Busqueda?.VectorConsulta is not { } v || (calculado == Turno && proyeccion is not null)) return;
+        calculado = Turno;
+        error = null;
+        try
+        {
+            proyeccion = await Proyector.Obtener(Turno.Opciones.Estrategia);
+            consulta = proyeccion.Proyectar(v);
+            seleccionadosIds = Turno.Seleccionados.Select(s => s.Chunk.Id).ToHashSet();
+            seleccionados = proyeccion.Puntos.Where(p => seleccionadosIds.Contains(p.Id)).ToList();
+            var xs = proyeccion.Puntos.Select(p => p.X).Append(consulta.X).ToList();
+            var ys = proyeccion.Puntos.Select(p => p.Y).Append(consulta.Y).ToList();
+            (minX, maxX, minY, maxY) = (xs.Min(), xs.Max(), ys.Min(), ys.Max());
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        {
+            error = $"No se pudo proyectar: {ex.Message}";
+        }
+    }
+
+    bool Visible(PuntoChunk p)
+    {
+        var o = Turno.Opciones;
+        var permisos = o.Permisos == FiltroPermisos.Apagado || (p.TenantId == o.Tenant && p.Audiencia.Contains(o.Perfil));
+        return permisos && (p.Vigente || !o.SoloVigentes);
+    }
+
+    string X(double x) => (Margen + (x - minX) / Math.Max(maxX - minX, 1e-9) * (Ancho - 2 * Margen)).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+    string Y(double y) => (Margen + (maxY - y) / Math.Max(maxY - minY, 1e-9) * (Alto - 2 * Margen)).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+
+    static string Estrella(string cxs, string cys, double r)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        double cx = double.Parse(cxs, inv), cy = double.Parse(cys, inv);
+        var puntos = Enumerable.Range(0, 10).Select(i =>
+        {
+            var radio = i % 2 == 0 ? r : r * 0.45;
+            var ang = Math.PI / 5 * i - Math.PI / 2;
+            return $"{(cx + radio * Math.Cos(ang)).ToString("F1", inv)},{(cy + radio * Math.Sin(ang)).ToString("F1", inv)}";
+        });
+        return "M" + string.Join(" L", puntos) + " Z";
+    }
+
+    static string NombreArea(string a) => a switch
+    {
+        "atencion-al-cliente" => "Atención al cliente",
+        "sistema-de-reservas" => "Sistema de reservas",
+        "operaciones" => "Operaciones",
+        "recursos-humanos" => "Recursos humanos",
+        "gerencia" => "Gerencia",
+        "marketing" => "Marketing",
+        "administracion" => "Administración",
+        _ => a
+    };
+}

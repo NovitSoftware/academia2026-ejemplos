@@ -1,0 +1,116 @@
+@* Panel derecho: qué recibió (o va a recibir) el modelo en una llamada. *@
+
+<div class="tarjeta rayos">
+    <div class="rayos-cab">
+        <h2>🩻 Rayos X del contexto</h2>
+        <select @bind="seleccion">
+            <option value="0">Seguir la última llamada</option>
+            <option value="-1">Próxima llamada (vista previa)</option>
+            @foreach (var l in S.Llamadas.AsEnumerable().Reverse())
+            {
+                <option value="@l.Numero">#@l.Numero · turno @l.Turno · ~@Fmt.N(l.Ventana.Estimado) tok @(l.Compactacion is not null ? "✂" : "") @(l.Ventana.Desborda ? "⚠" : "")</option>
+            }
+        </select>
+        <div class="pestanas">
+            @foreach (var (id, nombre) in Pestanas)
+            {
+                <button class="pestana @(pestana == id ? "activa" : "")" @onclick="() => pestana = id">@nombre</button>
+            }
+        </div>
+    </div>
+
+    <div class="rayos-cuerpo">
+        @if (pestana == "linea")
+        {
+            <PanelLinea Llamadas="S.Llamadas" Seleccion="Llamada?.Numero" AlSeleccionar="Seleccionar" />
+        }
+        else if (V is null)
+        {
+            <p class="sutil">Armando la vista previa…</p>
+        }
+        else
+        {
+            <div class="metricas">
+                <div class="metrica">
+                    <div class="metrica-valor">~@Fmt.N(V.Estimado)</div>
+                    <div class="metrica-label">tokens estimados @(Llamada is null ? "(vista previa)" : $"· llamada #{Llamada.Numero}")</div>
+                </div>
+                <div class="metrica">
+                    <div class="metrica-valor">@Fmt.N(Llamada?.TokensReales)</div>
+                    <div class="metrica-label">procesados por Ollama</div>
+                </div>
+                <div class="metrica">
+                    <div class="metrica-valor">@Fmt.N(V.NumCtx)</div>
+                    <div class="metrica-label">num_ctx · umbral @Fmt.N(V.Umbral)</div>
+                </div>
+                <div class="metrica">
+                    <div class="metrica-valor">@(Llamada is null ? "—" : Fmt.Seg(Llamada.Duracion))</div>
+                    <div class="metrica-label">tiempo de la llamada</div>
+                </div>
+            </div>
+
+            @if (Llamada?.Compactacion is { } c)
+            {
+                <div class="alerta-desborde alerta-umbral">
+                    <span>✂</span>
+                    <span>Antes de esta llamada se compactó: <b>~@Fmt.N(c.TokensAntes) → ~@Fmt.N(c.TokensDespues)</b> tokens.
+                        @c.MensajesResumidos mensajes pasaron al resumen; quedan literales los últimos turnos.</span>
+                </div>
+            }
+            @if (V.Desborda)
+            {
+                <div class="alerta-desborde">
+                    <span>⚠</span>
+                    <span><b>No entra.</b> Se quieren enviar ~@Fmt.N(V.Estimado) tokens y num_ctx es @Fmt.N(V.NumCtx).
+                        Ollama no da error: descarta en silencio los mensajes más viejos
+                        @(Llamada?.TokensReales is { } r ? $"(procesó {Fmt.N(r)})" : "").
+                        Los bloques tachados son los que probablemente quedaron afuera.</span>
+                </div>
+            }
+            else if (V.SuperaUmbral)
+            {
+                <div class="alerta-desborde alerta-umbral">
+                    <span>⚠</span>
+                    <span>Supera el umbral de compactación (@Fmt.N(V.Umbral) tokens). @(S.Opciones.Compactar ? "En la próxima llamada se compacta." : "La compactación está apagada.")</span>
+                </div>
+            }
+
+            @if (pestana == "ventana")
+            {
+                <PanelVentana V="V" Llamada="Llamada" />
+            }
+            else
+            {
+                <PanelPresupuesto V="V" Llamada="Llamada" Calibracion="S.Constructor.Calibracion" />
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public SesionDemo S { get; set; } = default!;
+
+    /// <summary>Ventana que se enviaría ahora: se muestra cuando todavía no hubo llamadas.</summary>
+    [Parameter] public Ventana? VistaPrevia { get; set; }
+
+    static readonly (string, string)[] Pestanas = [("ventana", "Ventana"), ("presupuesto", "Presupuesto"), ("linea", "Línea de tiempo")];
+
+    string pestana = "ventana";
+
+    /// <summary>0 = seguir la última, -1 = vista previa, n = llamada n.</summary>
+    int seleccion;
+
+    LlamadaModelo? Llamada => seleccion switch
+    {
+        0 => S.Llamadas.LastOrDefault(),
+        -1 => null,
+        var n => S.Llamadas.FirstOrDefault(l => l.Numero == n) ?? S.Llamadas.LastOrDefault(),
+    };
+
+    Ventana? V => Llamada?.Ventana ?? VistaPrevia;
+
+    void Seleccionar(int numero) => seleccion = numero;
+
+    /// <summary>Vuelve a seguir la última llamada (al empezar un escenario nuevo).</summary>
+    public void SeguirUltima() => seleccion = 0;
+}

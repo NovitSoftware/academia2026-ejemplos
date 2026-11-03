@@ -1,0 +1,90 @@
+@* Pestaña Pipeline (slides 02 y 13): qué entra y qué sale de cada etapa. *@
+
+<div class="pipeline">
+    @foreach (var (etapa, i) in Turno.Etapas.Select((e, i) => (e, i)))
+    {
+        if (i > 0) { <div class="flecha" aria-hidden="true">→</div> }
+        <article class="etapa @Clase(etapa.Estado)">
+            <header>
+                <span class="numero">0@(i + 1)</span>
+                <span class="nombre">@etapa.Nombre</span>
+                <span class="estado">@TextoEstado(etapa.Estado)</span>
+            </header>
+            <p class="descripcion">@etapa.Descripcion</p>
+            @if (etapa.Duracion is { } d)
+            {
+                <p class="duracion">@(d.TotalSeconds >= 1 ? $"{d.TotalSeconds:F1} s" : $"{d.TotalMilliseconds:F0} ms")</p>
+            }
+        </article>
+    }
+</div>
+
+<dl class="detalle-etapas">
+    @foreach (var etapa in Turno.Etapas.Where(e => e.Entrada.Length > 0 || e.Salida.Length > 0))
+    {
+        <dt>@etapa.Nombre</dt>
+        <dd>
+            @if (etapa.Entrada.Length > 0) { <div><span class="rotulo">Entrada</span> @etapa.Entrada</div> }
+            @if (etapa.Salida.Length > 0) { <div><span class="rotulo">Salida</span> @etapa.Salida</div> }
+        </dd>
+    }
+</dl>
+
+@if (Turno.Busqueda is { } b)
+{
+    <section class="bloque">
+        <h3>Consulta que llegó a PostgreSQL</h3>
+        <p><span class="rotulo">Texto</span> «@Turno.Consulta»</p>
+        @if (Turno.Consulta != Turno.Pregunta)
+        {
+            <p><span class="rotulo">Pregunta original</span> «@Turno.Pregunta»</p>
+        }
+        @if (Turno.Opciones.Modo != ModoBusqueda.Semantica)
+        {
+            <p><span class="rotulo">tsquery</span> <code>@(b.TsQuery.Length == 0 ? "(vacía: solo palabras vacías)" : b.TsQuery)</code></p>
+        }
+        <p><span class="rotulo">Filtros</span> @Filtros(Turno.Opciones)</p>
+        @if (Turno.PromptReescritura is { } pr)
+        {
+            <details>
+                <summary>Ver el pedido de reescritura</summary>
+                <pre class="codigo">@pr</pre>
+            </details>
+        }
+        <details>
+            <summary>Ver SQL</summary>
+            <pre class="codigo">@b.Sql</pre>
+        </details>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public TurnoRag Turno { get; set; } = default!;
+
+    static string Clase(EstadoEtapa e) => e.ToString().ToLowerInvariant();
+
+    static string TextoEstado(EstadoEtapa e) => e switch
+    {
+        EstadoEtapa.Pendiente => "pendiente",
+        EstadoEtapa.EnCurso => "en curso…",
+        EstadoEtapa.Lista => "lista",
+        EstadoEtapa.Omitida => "apagada",
+        _ => "error"
+    };
+
+    static string Filtros(OpcionesTurno o)
+    {
+        var partes = new List<string>
+        {
+            o.Permisos switch
+            {
+                FiltroPermisos.Pre => $"tenant = {o.Tenant} y audiencia ∋ {o.Perfil} en el WHERE (pre-filtering)",
+                FiltroPermisos.Post => $"tenant y audiencia se aplican después del top-k (post-filtering)",
+                _ => "sin filtro de permisos"
+            },
+            o.SoloVigentes ? "solo vigentes" : "incluye deprecated",
+            $"estrategia = {o.Estrategia}"
+        };
+        return string.Join(" · ", partes);
+    }
+}

@@ -1,0 +1,136 @@
+@* Presupuesto explícito (slide 08): cuánto ocupa cada componente frente a su tope y frente a num_ctx. *@
+
+@{
+    var max = Math.Max(V.NumCtx, V.Estimado) * 1.06;
+    double X(double t) => 1000 * t / max;
+    var salida = Presupuesto.Tope(Componente.ReservaSalida, V.NumCtx);
+    var x0 = 0.0;
+    var real = Llamada?.TokensReales;
+}
+
+<div class="leyenda">
+    @foreach (var t in Enum.GetValues<Tipo>())
+    {
+        <span class="@Fmt.Clase(t)"><span class="punto"></span>@Presupuesto.Nombre(t)</span>
+    }
+    <span><svg width="22" height="10"><rect width="22" height="10" fill="url(#rayado-salida)" stroke="#b9bcc2" /></svg> Reserva de salida</span>
+</div>
+
+<svg class="barra-svg" viewBox="0 0 1000 150" role="img" aria-label="Uso de la ventana por componente">
+    <defs>
+        <pattern id="rayado-salida" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="8" height="8" fill="#f1f2f4" />
+            <line x1="0" y1="0" x2="0" y2="8" stroke="#b9bcc2" stroke-width="3" />
+        </pattern>
+    </defs>
+
+    <rect x="0" y="40" width="@Fmt.F(X(V.NumCtx))" height="44" rx="4" fill="#eef0f3" />
+    <rect x="@Fmt.F(X(V.NumCtx - salida))" y="40" width="@Fmt.F(X(salida))" height="44" fill="url(#rayado-salida)">
+        <title>Reserva de salida: @Fmt.N(salida) tokens para la respuesta del modelo</title>
+    </rect>
+
+    @foreach (var c in Orden)
+    {
+        var tokens = V.TokensDe(c);
+        if (tokens == 0) continue;
+        var ancho = Math.Max(1, X(tokens) - 2);
+        <rect class="seg" x="@Fmt.F(X(x0))" y="40" width="@Fmt.F(ancho)" height="44" rx="3" style="fill: var(--@Var(c))">
+            <title>@Presupuesto.Nombre(c): ~@Fmt.N(tokens) tokens (tope @Fmt.N(Presupuesto.Tope(c, V.NumCtx)))</title>
+        </rect>
+        @if (ancho > 110)
+        {
+            <g><text class="etq-seg" x="@Fmt.F(X(x0) + 6)" y="68">@Corto(c)</text></g>
+        }
+        x0 += tokens;
+    }
+
+    @if (V.Desborda)
+    {
+        <rect x="@Fmt.F(X(V.NumCtx))" y="36" width="@Fmt.F(X(V.Estimado - V.NumCtx))" height="52" fill="#d03b3b" fill-opacity=".16" stroke="#d03b3b" stroke-dasharray="4 3" />
+        <g><text class="etq-critica" x="@Fmt.F(Math.Min(X(V.NumCtx) + 6, 760))" y="110">✂ ~@Fmt.N(V.Estimado - V.NumCtx) tok no entran</text></g>
+    }
+
+    <line x1="@Fmt.F(X(V.Umbral))" x2="@Fmt.F(X(V.Umbral))" y1="28" y2="92" stroke="#b07800" stroke-width="2" stroke-dasharray="5 4" />
+    <text class="etq-linea" x="@Fmt.F(X(V.Umbral) - 4)" y="22" text-anchor="end" style="fill:#8a5d00">umbral @Fmt.N(V.Umbral)</text>
+    <line x1="@Fmt.F(X(V.NumCtx))" x2="@Fmt.F(X(V.NumCtx))" y1="28" y2="92" stroke="#0f172a" stroke-width="2.5" />
+    <text class="etq-linea" x="@Fmt.F(X(V.NumCtx) > 760 ? X(V.NumCtx) - 4 : X(V.NumCtx) + 4)" y="22" text-anchor="@(X(V.NumCtx) > 760 ? "end" : "start")">num_ctx @Fmt.N(V.NumCtx)</text>
+
+    @if (real is { } r)
+    {
+        <path d="M @Fmt.F(X(r)) 88 l -7 11 h 14 z" fill="#0f172a" />
+        <g><text x="@Fmt.F(Math.Clamp(X(r), 110, 890))" y="140" text-anchor="middle">Ollama procesó @Fmt.N(r)</text></g>
+    }
+    <text x="0" y="110">0</text>
+</svg>
+
+<table class="tabla">
+    <thead>
+        <tr>
+            <th>Componente</th>
+            <th>Tipo</th>
+            <th class="num">Usado</th>
+            <th class="num">Tope</th>
+            <th>Uso del tope</th>
+            <th>Si se pasa</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var c in Presupuesto.Todos)
+        {
+            var tope = Presupuesto.Tope(c, V.NumCtx);
+            var usado = c == Componente.ReservaSalida ? (long?)null : V.TokensDe(c);
+            var excede = usado > tope;
+            <tr>
+                <td class="@Fmt.Clase(c)"><span class="punto" style="@(c == Componente.ReservaSalida ? "background:#b9bcc2" : "")"></span>@Presupuesto.Nombre(c)</td>
+                <td class="sutil">@(c == Componente.ReservaSalida ? "—" : Presupuesto.Nombre(Presupuesto.TipoDe(c)))</td>
+                <td class="num">@(usado is null ? "—" : "~" + Fmt.N(usado.Value))</td>
+                <td class="num">@Fmt.N(tope)</td>
+                <td>
+                    @if (usado is { } u)
+                    {
+                        <div class="mini-barra @(excede ? "excede" : "")"><span style="width:@Fmt.F(Math.Min(100, 100.0 * u / Math.Max(1, tope)))%"></span></div>
+                    }
+                </td>
+                <td>
+                    @if (excede)
+                    {
+                        <span class="estado-excede">⚠ excede · </span>
+                    }
+                    <span class="sutil">@Presupuesto.Politica(c)</span>
+                </td>
+            </tr>
+        }
+    </tbody>
+    <tfoot>
+        <tr>
+            <td colspan="2">Total del prompt (estimado)</td>
+            <td class="num">~@Fmt.N(V.Estimado)</td>
+            <td class="num">@Fmt.N(V.NumCtx - salida)</td>
+            <td colspan="2" class="sutil">disponible para el prompt: num_ctx menos la reserva de salida</td>
+        </tr>
+    </tfoot>
+</table>
+<p class="sutil mt-2 mb-0">
+    Los topes son la tabla del slide 08 (32.000 tokens) escalada a num_ctx = @Fmt.N(V.NumCtx).
+    Ollama no expone un tokenizador: cada componente se estima por caracteres y se calibra con el total real
+    (<code>prompt_eval_count</code>). Factor de calibración actual: ×@Calibracion.ToString("0.00").
+</p>
+
+@code {
+    [Parameter, EditorRequired] public Ventana V { get; set; } = default!;
+    [Parameter] public LlamadaModelo? Llamada { get; set; }
+    [Parameter] public double Calibracion { get; set; } = 1;
+
+    static readonly Componente[] Orden =
+        [Componente.Sistema, Componente.Herramientas, Componente.Documentos, Componente.Memoria,
+         Componente.Historial, Componente.ResultadosTools, Componente.Consulta];
+
+    static string Var(Componente c) => Fmt.Clase(c);
+
+    static string Corto(Componente c) => c switch
+    {
+        Componente.ResultadosTools => "Tools (result.)",
+        Componente.Sistema => "Sistema",
+        _ => Presupuesto.Nombre(c),
+    };
+}

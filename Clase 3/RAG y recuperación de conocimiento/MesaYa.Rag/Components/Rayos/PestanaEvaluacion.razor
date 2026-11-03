@@ -1,0 +1,111 @@
+@* Pestaña Evaluación (slide 16): hit rate@5 y MRR por configuración sobre evaluacion/preguntas.json. *@
+@using MesaYa.Rag.Evaluacion
+@implements IDisposable
+@inject EstadoEvaluacion Estado
+
+<div class="eval-acciones">
+    <button @onclick="Correr" disabled="@Estado.Corriendo">@(Estado.Corriendo ? "Evaluando…" : "Correr evaluación")</button>
+    <label class="check"><input type="checkbox" @bind="conReranker" disabled="@Estado.Corriendo" /> Incluir configuraciones con reranker (más lentas)</label>
+</div>
+<p class="leyenda">
+    Mide solo la recuperación: para cada pregunta, si el fragmento esperado llega al top @Evaluador.K que recibe el modelo.
+    Las preguntas de permisos no cuentan para el hit rate: fallan si un documento prohibido entra al contexto.
+</p>
+
+@if (Estado.Corriendo)
+{
+    <div class="progreso" role="progressbar" aria-valuenow="@Estado.Hechas" aria-valuemax="@Estado.Total">
+        <div class="barra-progreso" style="width: @(Estado.Total == 0 ? 0 : 100 * Estado.Hechas / Estado.Total)%"></div>
+    </div>
+    <p class="leyenda">@Estado.EnCurso · @Estado.Hechas de @Estado.Total</p>
+}
+
+@if (Estado.Resultados.Count > 0)
+{
+    <table class="tabla-metricas">
+        <thead>
+            <tr><th></th><th>Configuración</th><th>hit rate@@@Evaluador.K</th><th>MRR</th><th>Violaciones</th><th>Tiempo</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var (r, i) in Estado.Resultados.Select((r, i) => (r, i)))
+            {
+                <tr class="@(r.HitRate == MejorHit ? "mejor" : "")">
+                    <td class="pos">c@(i + 1)</td>
+                    <td>@r.Config.Nombre</td>
+                    @if (r.Error is not null)
+                    {
+                        <td colspan="4" class="error">@r.Error</td>
+                    }
+                    else
+                    {
+                        <td>
+                            <div class="medidor"><div style="width: @((int)(r.HitRate * 100))%"></div></div>
+                            <span class="valor">@r.HitRate.ToString("P0")</span> <span class="detalle">(@r.Aciertos/@r.Evaluadas)</span>
+                        </td>
+                        <td class="valor">@r.Mrr.ToString("F2")</td>
+                        <td class="valor @(r.Violaciones > 0 ? "error" : "")">@r.Violaciones</td>
+                        <td class="valor">@(r.Duracion.TotalSeconds.ToString("F1")) s</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h3 class="eval-titulo">Posición del fragmento esperado</h3>
+    <p class="leyenda">Número = posición en el top @Evaluador.K · «—» = no llegó · ✗ = entró un documento prohibido. Pasá el mouse para ver qué se recuperó.</p>
+    <div class="tabla-ranking">
+        <table class="matriz">
+            <thead>
+                <tr>
+                    <th>Pregunta</th>
+                    @for (var i = 0; i < Estado.Resultados.Count; i++)
+                    {
+                        <th title="@Estado.Resultados[i].Config.Nombre">c@(i + 1)</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Estado.Preguntas())
+                {
+                    <tr>
+                        <td><span class="pos">@p.Id</span> <span class="detalle">@p.Escenario · @p.Pregunta</span></td>
+                        @foreach (var r in Estado.Resultados)
+                        {
+                            var x = r.Preguntas.FirstOrDefault(q => q.Pregunta.Id == p.Id);
+                            <td class="celda @Clase(x)" title="@Detalle(x)">@Celda(x)</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    bool conReranker = true;
+
+    double MejorHit => Estado.Resultados.Where(r => r.Error is null).Select(r => r.HitRate).DefaultIfEmpty(-1).Max();
+
+    protected override void OnInitialized() => Estado.Cambio += Refrescar;
+
+    Task Refrescar() => InvokeAsync(StateHasChanged);
+
+    Task Correr() => Estado.Correr(conReranker);
+
+    static string Celda(ResultadoPregunta? x) =>
+        x is null ? "" : x.Prohibidos.Count > 0 ? "✗" : x.Rango?.ToString() ?? (x.CuentaParaHitRate ? "—" : "ok");
+
+    static string Clase(ResultadoPregunta? x) =>
+        x is null ? "" : x.Prohibidos.Count > 0 ? "falla" : x.Rango is 1 || !x.CuentaParaHitRate ? "primero" : x.Rango is not null ? "acierto" : "falla";
+
+    static string Detalle(ResultadoPregunta? x)
+    {
+        if (x is null) return "";
+        var lineas = new List<string>();
+        if (x.Consulta != x.Pregunta.Pregunta) lineas.Add($"Consulta reescrita: {x.Consulta}");
+        lineas.AddRange(x.Top.Select((c, i) => $"{i + 1}. {c.DocumentId} · {c.SeccionParaElModelo.Split(" › ").Skip(1).FirstOrDefault() ?? "(intro)"}"));
+        return string.Join("\n", lineas);
+    }
+
+    public void Dispose() => Estado.Cambio -= Refrescar;
+}

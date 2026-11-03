@@ -1,0 +1,318 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject PipelineRag Pipeline
+@inject Ejemplos Ejemplos
+@inject Guion Guion
+
+<PageTitle>MesaYa · Rayos X de la recuperación</PageTitle>
+
+<div class="app">
+    <header class="barra">
+        <div class="marca">
+            <span class="logo">MesaYa</span>
+            <span class="subtitulo">Rayos X de la recuperación</span>
+        </div>
+        <div class="controles">
+            <label>Perfil
+                <select @bind="perfil">
+                    <option value="clientes">Cliente</option>
+                    <option value="personal">Personal</option>
+                    <option value="gerencia">Gerencia</option>
+                </select>
+            </label>
+            <label>Tenant
+                <select @bind="tenant">
+                    <option value="mesaya-ar">Argentina</option>
+                    <option value="mesaya-uy">Uruguay</option>
+                </select>
+            </label>
+            <label>Chunking
+                <select @bind="estrategia">
+                    @foreach (var e in Estrategias.Todas)
+                    {
+                        <option value="@e">@NombreEstrategia(e)</option>
+                    }
+                </select>
+            </label>
+            <label>Búsqueda
+                <select @bind="modo">
+                    <option value="@ModoBusqueda.Hibrida">Híbrida (RRF)</option>
+                    <option value="@ModoBusqueda.Semantica">Semántica</option>
+                    <option value="@ModoBusqueda.PalabrasClave">Palabras clave</option>
+                </select>
+            </label>
+            <label>Permisos
+                <select @bind="permisos">
+                    <option value="@FiltroPermisos.Pre">Pre-filtering</option>
+                    <option value="@FiltroPermisos.Post">Post-filtering</option>
+                    <option value="@FiltroPermisos.Apagado">Sin filtro</option>
+                </select>
+            </label>
+            <label>Candidatos
+                <select @bind="candidatos">
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </label>
+            <label>Al contexto
+                <select @bind="topFinal">
+                    <option value="3">Top 3</option>
+                    <option value="5">Top 5</option>
+                    <option value="8">Top 8</option>
+                </select>
+            </label>
+            <label class="check"><input type="checkbox" @bind="soloVigentes" /> Solo vigentes</label>
+            <label class="check"><input type="checkbox" @bind="reescribir" /> Reescribir consulta</label>
+            <label class="check"><input type="checkbox" @bind="rerankear" /> Reranker</label>
+            <label class="check guion" title="Reproduce turnos grabados sin llamar a Ollama, al reranker ni a la base">
+                <input type="checkbox" @bind="modoGuion" /> Modo guion <span class="detalle">(@Guion.Cantidad grabados)</span>
+            </label>
+        </div>
+    </header>
+
+    <main class="columnas">
+        <section class="chat" aria-label="Chat">
+            <div class="chat-herramientas">
+                <select value="@ejemploId" @onchange="CargarEjemplo" aria-label="Pregunta de ejemplo">
+                    <option value="">Cargar una pregunta de ejemplo…</option>
+                    @foreach (var p in ejemplos)
+                    {
+                        <option value="@p.Id">@p.Escenario · @p.Pregunta</option>
+                    }
+                </select>
+                <button class="secundario" @onclick="NuevaConversacion" disabled="@ocupado">Nueva conversación</button>
+            </div>
+
+            @if (modoGuion)
+            {
+                <div class="aviso-guion">Modo guion: las respuestas se reproducen desde guion/, sin llamar a Ollama, al reranker ni a la base.</div>
+            }
+
+            @if (ejemplo is not null)
+            {
+                <div class="nota-ejemplo">
+                    <strong>@ejemplo.Id · escenario @ejemplo.Escenario.</strong> @ejemplo.Notas
+                    <span class="esperado">Respuesta esperada: @ejemplo.RespuestaClave</span>
+                </div>
+            }
+
+            <div class="mensajes" @ref="contenedorMensajes">
+                @if (entradas.Count == 0)
+                {
+                    <p class="vacio">Hacé una pregunta sobre MesaYa o cargá un ejemplo. A la derecha vas a ver qué se recuperó y qué recibió el modelo.</p>
+                }
+                @foreach (var e in entradas)
+                {
+                    if (e.Rol == MensajeChat.Usuario)
+                    {
+                        <div class="mensaje usuario @(e.Turno is not null && e.Turno == seleccionado ? "seleccionado" : "")"
+                             @onclick="() => Seleccionar(e.Turno)">
+                            @e.Texto
+                            @if (e.Precargado) { <span class="etiqueta">historial precargado</span> }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mensaje asistente @(e.Turno is not null && e.Turno == seleccionado ? "seleccionado" : "")"
+                             @onclick="() => Seleccionar(e.Turno)">
+                            @if (e.Turno is { } t)
+                            {
+                                @if (t.Error is not null)
+                                {
+                                    <span class="error">No se pudo responder: @t.Error</span>
+                                }
+                                else if (t.Respuesta.Length == 0)
+                                {
+                                    <span class="pensando">@EstadoTurno(t)</span>
+                                }
+                                else
+                                {
+                                    @FormatoRespuesta(t)
+                                    @if (t.Grabado is { } g) { <span class="etiqueta">grabado el @g.ToString("dd/MM HH:mm")</span> }
+                                }
+                            }
+                            else
+                            {
+                                @e.Texto
+                                @if (e.Precargado) { <span class="etiqueta">historial precargado</span> }
+                            }
+                        </div>
+                    }
+                }
+            </div>
+
+            <form class="entrada" @onsubmit="Enviar" @onsubmit:preventDefault>
+                <textarea @bind="pregunta" @bind:event="oninput" @onkeydown="TeclaEntrada" rows="2"
+                          placeholder="Preguntá algo sobre MesaYa…" aria-label="Pregunta"></textarea>
+                <button type="submit" disabled="@(ocupado || string.IsNullOrWhiteSpace(pregunta))">@(ocupado ? "Respondiendo…" : "Enviar")</button>
+            </form>
+        </section>
+
+        <section class="rayos" aria-label="Rayos X">
+            <nav class="pestanas" role="tablist">
+                @foreach (var (id, nombre) in Pestanas)
+                {
+                    <button role="tab" aria-selected="@(pestana == id)" class="@(pestana == id ? "activa" : "")" @onclick="() => pestana = id">@nombre</button>
+                }
+            </nav>
+
+            <div class="panel">
+                @if (pestana == "evaluacion")
+                {
+                    <PestanaEvaluacion />
+                }
+                else if (seleccionado is not { } turnoVisible)
+                {
+                    <p class="vacio">Todavía no hay turnos. Mandá una pregunta para ver su recorrido.</p>
+                }
+                else if (pestana == "pipeline")
+                {
+                    <PestanaPipeline Turno="turnoVisible" />
+                }
+                else if (pestana == "ranking")
+                {
+                    <PestanaRanking Turno="turnoVisible" />
+                }
+                else if (pestana == "espacio")
+                {
+                    <PestanaEspacio Turno="turnoVisible" />
+                }
+                else if (pestana == "chunks")
+                {
+                    <PestanaChunks Turno="turnoVisible" />
+                }
+                else
+                {
+                    <PestanaContexto Turno="turnoVisible" />
+                }
+            </div>
+        </section>
+    </main>
+</div>
+
+@code {
+    sealed class Entrada(string rol, string texto, TurnoRag? turno = null, bool precargado = false)
+    {
+        public string Rol { get; } = rol;
+        public string Texto { get; } = texto;
+        public TurnoRag? Turno { get; } = turno;
+        public bool Precargado { get; } = precargado;
+    }
+
+    static readonly (string Id, string Nombre)[] Pestanas = [("pipeline", "Pipeline"), ("ranking", "Ranking"), ("espacio", "Espacio"), ("chunks", "Chunks"), ("contexto", "Contexto"), ("evaluacion", "Evaluación")];
+
+    string perfil = "clientes", tenant = "mesaya-ar", estrategia = Estrategias.Estructural;
+    ModoBusqueda modo = ModoBusqueda.Hibrida;
+    FiltroPermisos permisos = FiltroPermisos.Pre;
+    bool soloVigentes = true, reescribir, rerankear, modoGuion;
+    int candidatos = 50, topFinal = 5;
+
+    readonly List<Entrada> entradas = [];
+    IReadOnlyList<PreguntaEvaluacion> ejemplos = [];
+    PreguntaEvaluacion? ejemplo;
+    string ejemploId = "";
+    string pregunta = "";
+    string pestana = "pipeline";
+    TurnoRag? seleccionado;
+    bool ocupado;
+    ElementReference contenedorMensajes;
+    readonly CancellationTokenSource cancelacion = new();
+
+    protected override void OnInitialized() => ejemplos = Ejemplos.Leer();
+
+    static string NombreEstrategia(string e) => e switch
+    {
+        Estrategias.Fijo => "Fijo 150",
+        Estrategias.Recursivo => "Recursivo 512",
+        Estrategias.Estructural => "Estructural",
+        Estrategias.Contextual => "Contextual",
+        Estrategias.Hijo => "Parent–child",
+        _ => e
+    };
+
+    void Seleccionar(TurnoRag? turno)
+    {
+        if (turno is not null) seleccionado = turno;
+    }
+
+    void NuevaConversacion()
+    {
+        entradas.Clear();
+        seleccionado = null;
+        ejemplo = null;
+        ejemploId = "";
+    }
+
+    void CargarEjemplo(ChangeEventArgs args)
+    {
+        if (ocupado) return;
+        NuevaConversacion();
+        ejemploId = args.Value?.ToString() ?? "";
+        ejemplo = ejemplos.FirstOrDefault(p => p.Id == ejemploId);
+        if (ejemplo is null) return;
+        perfil = ejemplo.Perfil;
+        tenant = ejemplo.Tenant;
+        foreach (var h in ejemplo.Historial)
+            entradas.Add(new Entrada(h.Rol == "usuario" ? MensajeChat.Usuario : MensajeChat.Asistente, h.Texto, precargado: true));
+        pregunta = ejemplo.Pregunta;
+    }
+
+    async Task TeclaEntrada(KeyboardEventArgs e)
+    {
+        if (e is { Key: "Enter", ShiftKey: false }) await Enviar();
+    }
+
+    async Task Enviar()
+    {
+        var texto = pregunta.Trim();
+        if (ocupado || texto.Length == 0) return;
+
+        var historial = entradas
+            .Select(e => new MensajeChat(e.Rol, e.Turno is null ? e.Texto : e.Turno.Respuesta.ToString()))
+            .Where(m => m.Texto.Length > 0)
+            .ToList();
+        var turno = new TurnoRag(texto, new OpcionesTurno(perfil, tenant, estrategia, modo, permisos, soloVigentes, candidatos, topFinal, reescribir, rerankear));
+        entradas.Add(new Entrada(MensajeChat.Usuario, texto, turno));
+        entradas.Add(new Entrada(MensajeChat.Asistente, "", turno));
+        seleccionado = turno;
+        pregunta = "";
+        ocupado = true;
+        try
+        {
+            await Pipeline.Ejecutar(turno, historial, () => InvokeAsync(StateHasChanged), modoGuion, cancelacion.Token);
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            ocupado = false;
+        }
+    }
+
+    static string EstadoTurno(TurnoRag t) =>
+        t.Etapas.FirstOrDefault(e => e.Estado == EstadoEtapa.EnCurso) is { } e ? $"{e.Nombre}…" : "Esperando…";
+
+    /// <summary>Escapa el HTML de la respuesta y convierte **negritas** y citas [n] en elementos.</summary>
+    static MarkupString FormatoRespuesta(TurnoRag t)
+    {
+        var html = System.Net.WebUtility.HtmlEncode(t.Respuesta.ToString());
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"(?<![\w*])\*(?!\s)([^*\n]+?)(?<!\s)\*(?![\w*])", "<em>$1</em>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\[(\d+)\]", m =>
+        {
+            var n = int.Parse(m.Groups[1].Value);
+            var fuente = n >= 1 && n <= t.Seleccionados.Count ? t.Seleccionados[n - 1].Chunk : null;
+            var titulo = fuente is null ? "Cita sin documento" : $"{fuente.DocumentId} · {fuente.SeccionParaElModelo}";
+            var clase = fuente is null ? "cita invalida" : "cita";
+            return $"<span class=\"{clase}\" title=\"{System.Net.WebUtility.HtmlEncode(titulo)}\">{n}</span>";
+        });
+        return new MarkupString(html.Replace("\n", "<br>"));
+    }
+
+    public void Dispose()
+    {
+        cancelacion.Cancel();
+        cancelacion.Dispose();
+    }
+}

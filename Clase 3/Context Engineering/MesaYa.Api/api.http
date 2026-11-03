@@ -1,0 +1,30 @@
+### Pruebas manuales de la API de la Clase 3 (VS Code REST Client, Rider o Visual Studio)
+@base = http://localhost:5180
+@token = demo-agente-token
+
+### Reiniciar los datos de la demo (reservas RSV-20481..20483)
+POST {{base}}/v1/demo/reset
+
+### Políticas: tres versiones, solo pol-cancel-v3 está vigente (escenario C)
+GET {{base}}/v1/politicas
+
+### Reseñas de Belgrano: RES-202 trae una prompt injection (escenario D)
+GET {{base}}/v1/resenas?sucursal_id=BEL
+
+### Todas las reservas: el token de servicio ve las de todos los clientes (escenario E)
+GET {{base}}/v1/reservas
+Authorization: Bearer {{token}}
+
+### Reservas de un cliente
+GET {{base}}/v1/reservas?telefono=%2B5491155550123
+Authorization: Bearer {{token}}
+
+### Menú completo: muchos campos que el modelo casi nunca necesita (densidad)
+GET {{base}}/v1/menu?sucursal_id=PAL
+
+### Disponibilidad
+GET {{base}}/v1/disponibilidad?sucursal_id=PAL&fecha=2026-11-06
+
+### Cancelar la reserva de Martín
+DELETE {{base}}/v1/reservas/RSV-20481
+Authorization: Bearer {{token}}

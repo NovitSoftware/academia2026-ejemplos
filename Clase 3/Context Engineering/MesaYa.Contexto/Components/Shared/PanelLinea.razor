@@ -1,0 +1,125 @@
+@* Ciclo de vida del contexto (slide 12): ensamblar, crecer, evaluar, compactar. Una barra por llamada al modelo. *@
+
+@if (Llamadas.Count == 0)
+{
+    <p class="sutil">Todavía no hubo llamadas al modelo. Corré un escenario o mandá un mensaje.</p>
+}
+else
+{
+    var slot = 64.0;
+    var ancho = Math.Max(640, 70 + Llamadas.Count * slot);
+    var max = Llamadas.Max(l => Math.Max(Math.Max(l.Ventana.Estimado, l.Ventana.NumCtx), l.Compactacion?.TokensAntes ?? 0)) * 1.12;
+    double Y(double t) => 186 - 160 * t / max;
+
+    <div class="leyenda">
+        <span><span class="punto" style="background:var(--t-inst)"></span>Tokens estimados enviados</span>
+        <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#0f172a" /></svg> Procesados por Ollama</span>
+        <span><svg width="22" height="6"><line x1="0" x2="22" y1="3" y2="3" stroke="#d03b3b" stroke-width="2" /></svg> num_ctx</span>
+        <span><svg width="22" height="6"><line x1="0" x2="22" y1="3" y2="3" stroke="#b07800" stroke-width="2" stroke-dasharray="5 4" /></svg> Umbral de compactación</span>
+        <span><svg width="14" height="12"><rect x="1" y="1" width="12" height="10" fill="none" stroke="#b07800" stroke-width="1.5" stroke-dasharray="3 2" /></svg> Antes de compactar</span>
+        <span>✂ compactó · ⚠ no entra</span>
+    </div>
+
+    <svg class="linea-svg" viewBox="0 0 @Fmt.F(ancho) 224" role="img" aria-label="Tokens por llamada al modelo">
+        @foreach (var g in new[] { 0.0, max / 2.24, max / 1.12 })
+        {
+            <g>
+                <line class="grilla" x1="54" x2="@Fmt.F(ancho)" y1="@Fmt.F(Y(g))" y2="@Fmt.F(Y(g))" />
+                <text x="48" y="@Fmt.F(Y(g) + 4)" text-anchor="end">@Fmt.N((long)g)</text>
+            </g>
+        }
+        @for (var i = 0; i < Llamadas.Count; i++)
+        {
+            var l = Llamadas[i];
+            var cx = 70 + i * slot + slot / 2;
+            var est = l.Ventana.Estimado;
+            var numero = l.Numero;
+            if (numero == Seleccion)
+            {
+                <rect class="sel" x="@Fmt.F(cx - slot / 2 + 3)" y="4" width="@Fmt.F(slot - 6)" height="212" rx="6" />
+            }
+            @if (l.Compactacion is { } previa)
+            {
+                <rect x="@Fmt.F(cx - 16)" y="@Fmt.F(Y(previa.TokensAntes))" width="32" height="@Fmt.F(186 - Y(previa.TokensAntes))" rx="4"
+                      fill="#fff7e0" stroke="#b07800" stroke-width="1.5" stroke-dasharray="4 3">
+                    <title>Antes de compactar: ~@Fmt.N(previa.TokensAntes) tokens</title>
+                </rect>
+            }
+            <rect class="barra" x="@Fmt.F(cx - 16)" y="@Fmt.F(Y(est))" width="32" height="@Fmt.F(186 - Y(est))" rx="4"
+                  @onclick="() => AlSeleccionar.InvokeAsync(numero)">
+                <title>Llamada #@numero · turno @l.Turno · estimado ~@Fmt.N(est) · Ollama @Fmt.N(l.TokensReales) · num_ctx @Fmt.N(l.Ventana.NumCtx)</title>
+            </rect>
+            <line class="tope" x1="@Fmt.F(cx - 24)" x2="@Fmt.F(cx + 24)" y1="@Fmt.F(Y(l.Ventana.NumCtx))" y2="@Fmt.F(Y(l.Ventana.NumCtx))" />
+            <line class="umbral" x1="@Fmt.F(cx - 24)" x2="@Fmt.F(cx + 24)" y1="@Fmt.F(Y(l.Ventana.Umbral))" y2="@Fmt.F(Y(l.Ventana.Umbral))" />
+            @if (l.TokensReales is { } r)
+            {
+                <circle class="real" cx="@Fmt.F(cx)" cy="@Fmt.F(Y(r))" r="5" />
+            }
+            @if (l.Ventana.Desborda)
+            {
+                <g><text x="@Fmt.F(cx)" y="@Fmt.F(Y(est) - 6)" text-anchor="middle" style="fill:var(--critico); font-weight:700">⚠</text></g>
+            }
+            @if (l.Compactacion is not null)
+            {
+                <g><text x="@Fmt.F(cx)" y="@Fmt.F(Y(l.Compactacion.TokensAntes) - 6)" text-anchor="middle" style="font-size:14px">✂</text></g>
+            }
+            <g>
+                <text x="@Fmt.F(cx)" y="204" text-anchor="middle" style="fill:var(--texto); font-weight:600">#@numero</text>
+                <text x="@Fmt.F(cx)" y="219" text-anchor="middle">turno @l.Turno</text>
+            </g>
+        }
+    </svg>
+
+    <table class="tabla mt-2">
+        <thead>
+            <tr><th>#</th><th>Turno</th><th class="num">Estimado</th><th class="num">Ollama</th><th class="num">num_ctx</th><th>El modelo pidió</th><th class="num">Tiempo</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var l in Llamadas)
+            {
+                var numero = l.Numero;
+                <tr class="clic @(numero == Seleccion ? "seleccionada" : "")" @onclick="() => AlSeleccionar.InvokeAsync(numero)">
+                    <td>#@numero @(l.Compactacion is not null ? "✂" : "")</td>
+                    <td>@l.Turno</td>
+                    <td class="num">~@Fmt.N(l.Ventana.Estimado) @(l.Ventana.Desborda ? "⚠" : "")</td>
+                    <td class="num">@Fmt.N(l.TokensReales)</td>
+                    <td class="num">@Fmt.N(l.Ventana.NumCtx)</td>
+                    <td class="mono" style="font-size:11.5px">@(l.Llamadas.Count > 0 ? string.Join(", ", l.Llamadas.Select(t => t.Nombre)) : "respuesta final")</td>
+                    <td class="num">@Fmt.Seg(l.Duracion)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @foreach (var l in Llamadas.Where(l => l.Compactacion is not null))
+    {
+        var c = l.Compactacion!;
+        <details class="evento-comp" open>
+            <summary>
+                ✂ <b>Compactación antes de la llamada #@l.Numero</b>:
+                ~@Fmt.N(c.TokensAntes) → ~@Fmt.N(c.TokensDespues) tokens · @c.MensajesResumidos mensajes resumidos
+                en @c.LlamadasResumen @(c.LlamadasResumen == 1 ? "llamada" : "llamadas") · @Fmt.Seg(c.Duracion)
+                · resumidor @(c.Resumidor == Resumidor.Fiel ? "fiel" : "defectuoso")
+            </summary>
+            @if (c.IdsRescatados.Count > 0)
+            {
+                <div class="mt-1"><span class="ok">✓ La verificación rescató</span> @string.Join(", ", c.IdsRescatados) y los guardó en la memoria.</div>
+            }
+            @if (c.IdsPerdidos.Count > 0)
+            {
+                <div class="mt-1"><span class="perdido">✗ El resumen perdió</span> @string.Join(", ", c.IdsPerdidos). Nadie lo verificó: desde ahora el agente ya no lo sabe.</div>
+            }
+            @if (c.IdsRescatados.Count == 0 && c.IdsPerdidos.Count == 0)
+            {
+                <div class="mt-1"><span class="ok">✓ Todos los IDs</span> quedaron en el resumen.</div>
+            }
+            <pre>@c.Resumen</pre>
+        </details>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public List<LlamadaModelo> Llamadas { get; set; } = [];
+    [Parameter] public int? Seleccion { get; set; }
+    [Parameter] public EventCallback<int> AlSeleccionar { get; set; }
+}

@@ -1,0 +1,30 @@
+@* Pestaña Contexto (slide 07): el pedido exacto que recibe el modelo. *@
+
+@if (Turno.Prompt is not { } p)
+{
+    <p class="vacio">@(Turno.Error ?? "Todavía no se armó el contexto…")</p>
+}
+else
+{
+    <div class="medidas">
+        <div><span class="cifra">~@p.TokensAprox</span><span class="rotulo">tokens estimados (caracteres / 4)</span></div>
+        <div><span class="cifra">@(Turno.Uso?.TokensEntrada?.ToString() ?? "…")</span><span class="rotulo">tokens reales de entrada (Ollama)</span></div>
+        <div><span class="cifra">@Turno.Seleccionados.Count</span><span class="rotulo">fragmentos en &lt;documentos&gt;</span></div>
+        <div><span class="cifra">@p.Modelo</span><span class="rotulo">modelo</span></div>
+    </div>
+
+    @foreach (var m in p.Mensajes)
+    {
+        <section class="mensaje-modelo @m.Role">
+            <header>
+                <span class="rol">@m.Role</span>
+                <span class="tokens">~@TokensEstimados.De(m.Content) tokens</span>
+            </header>
+            <pre>@m.Content</pre>
+        </section>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public TurnoRag Turno { get; set; } = default!;
+}

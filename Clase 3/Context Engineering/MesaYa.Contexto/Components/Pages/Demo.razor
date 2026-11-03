@@ -1,0 +1,347 @@
+@page "/"
+@implements IDisposable
+@inject SesionDemo S
+@inject ClienteOllama Ollama
+@inject ApiMesaYa Api
+@inject IJSRuntime JS
+
+<PageTitle>MesaYa · Context Lab</PageTitle>
+
+<header class="topbar">
+    <div class="marca"><img src="favicon.svg" alt="" /> <span>MesaYa <b>Context Lab</b></span></div>
+    <div class="topbar-centro">
+        @if (S.Escenario is { } activo)
+        {
+            <span>Escenario <strong>@activo.Letra · @activo.Titulo</strong> — variante <strong>@S.Variante?.Etiqueta</strong></span>
+        }
+        else
+        {
+            <span>Modo libre — cliente @(S.Perfil is null ? "anónimo" : S.Perfil.Nombre)</span>
+        }
+    </div>
+    <div class="pildoras">
+        <span class="pildora" title="MesaYa.Api (Clase 3)">@(apiOk ? "🟢" : "🔴") API :5180</span>
+        <span class="pildora" title="Ollama">@(ollamaOk ? "🟢" : "🔴") Ollama · @S.Opciones.Modelo</span>
+    </div>
+</header>
+
+<div class="layout">
+    @* ---------------- Columna izquierda: escenarios y perillas ---------------- *@
+    <aside class="col col-izq">
+        <div class="tarjeta">
+            <h2>Escenarios</h2>
+            @foreach (var e in escenarios)
+            {
+                <div class="esc @(S.Escenario?.Id == e.Id ? "activo" : "")">
+                    <div class="esc-cab"><span class="esc-letra">@e.Letra</span> @e.Titulo <span class="esc-slides">@e.Slides</span></div>
+                    <div class="esc-botones">
+                        @foreach (var v in e.Variantes)
+                        {
+                            var actual = S.Escenario?.Id == e.Id && S.Variante?.Id == v.Id;
+                            <button class="btn-var @(v.Recomendada ? "buena" : "") @(actual ? "actual" : "")" disabled="@S.Ocupado"
+                                    title="@v.Descripcion" aria-label="@($"{e.Letra} · {v.Etiqueta}")" @onclick="() => Correr(e, v)">@v.Etiqueta</button>
+                        }
+                    </div>
+                </div>
+            }
+            <button class="btn btn-secundario btn-libre mt-1" disabled="@S.Ocupado" @onclick="NuevaConversacion">Nueva conversación (modo libre)</button>
+        </div>
+
+        <div class="tarjeta">
+            <h2>Perillas del contexto</h2>
+            <fieldset disabled="@S.Ocupado">
+                <label class="control"><span>Modelo</span>
+                    <select @bind="S.Opciones.Modelo" @bind:after="Refrescar">
+                        @foreach (var m in modelos)
+                        {
+                            <option value="@m.Nombre" selected="@(m.Nombre == S.Opciones.Modelo)">@m.Nombre @(m.SoportaTools ? "" : "(sin tools)")</option>
+                        }
+                        @if (!modelos.Any(m => m.Nombre == S.Opciones.Modelo))
+                        {
+                            <option value="@S.Opciones.Modelo" selected>@S.Opciones.Modelo</option>
+                        }
+                    </select>
+                </label>
+                <label class="control"><span>Ventana (num_ctx)</span>
+                    <select @bind="S.Opciones.Ventana" @bind:after="Refrescar">
+                        @foreach (var n in new[] { 2048, 4096, 8192, 16384, 32768 })
+                        {
+                            <option value="@n">@Fmt.N(n)</option>
+                        }
+                    </select>
+                </label>
+                <label class="control"><span>Cliente</span>
+                    <select value="@(S.Perfil is null ? "anon" : "martin")" @onchange="CambiarCliente">
+                        <option value="martin">Martín (WhatsApp)</option>
+                        <option value="anon">Anónimo (web)</option>
+                    </select>
+                </label>
+
+                <div class="control-grupo">
+                    <div class="control-grupo-titulo">Selección · slides 05–06</div>
+                    <label class="control"><span>Conocimiento</span>
+                        <select @bind="S.Opciones.Estrategia" @bind:after="Refrescar">
+                            <option value="@Estrategia.BajoDemanda">Bajo demanda</option>
+                            <option value="@Estrategia.PreCarga">Pre-carga</option>
+                        </select>
+                    </label>
+                    <label class="control"><span>Documentos</span>
+                        <select @bind="S.Opciones.Documentos" @bind:after="Refrescar">
+                            <option value="@ModoDocumentos.SinMetadata">Sin metadata</option>
+                            <option value="@ModoDocumentos.ConMetadata">Con metadata</option>
+                            <option value="@ModoDocumentos.SoloVigentes">Solo vigentes</option>
+                        </select>
+                    </label>
+                    <label class="switch"><input type="checkbox" @bind="S.Opciones.ResultadosCompactos" @bind:after="Refrescar" /> Resultados de tools compactos</label>
+                    <label class="switch"><input type="checkbox" @bind="S.Opciones.FiltrarPermisos" @bind:after="Refrescar" /> Filtrar por permisos del cliente</label>
+                </div>
+
+                <div class="control-grupo">
+                    <div class="control-grupo-titulo">Mantenimiento · slides 10–12</div>
+                    <label class="switch"><input type="checkbox" @bind="S.Opciones.Compactar" @bind:after="Refrescar" /> Compactar (resumen + buffer)</label>
+                    <label class="control"><span>Umbral: @S.Opciones.UmbralPct %</span>
+                        <input type="range" min="50" max="90" step="5" @bind="S.Opciones.UmbralPct" @bind:event="oninput" @bind:after="Refrescar" />
+                    </label>
+                    <label class="control"><span>Turnos literales</span>
+                        <input type="number" min="1" max="8" style="width:60px" @bind="S.Opciones.TurnosLiterales" @bind:after="Refrescar" />
+                    </label>
+                    <label class="control"><span>Resumidor</span>
+                        <select @bind="S.Opciones.Resumidor" @bind:after="Refrescar">
+                            <option value="@Resumidor.Fiel">Fiel + verificación</option>
+                            <option value="@Resumidor.Defectuoso">Defectuoso</option>
+                        </select>
+                    </label>
+                    <label class="switch"><input type="checkbox" @bind="S.Opciones.LimpiarToolsProcesadas" @bind:after="Refrescar" /> Limpiar resultados ya procesados</label>
+                </div>
+
+                <div class="control-grupo">
+                    <div class="control-grupo-titulo">Seguridad · slide 14</div>
+                    <label class="switch"><input type="checkbox" @bind="S.Opciones.Delimitar" @bind:after="Refrescar" /> Delimitar datos con XML</label>
+                    <label class="switch"><input type="checkbox" @bind="S.Opciones.ConfirmarAcciones" /> Confirmación humana en acciones</label>
+                </div>
+            </fieldset>
+        </div>
+    </aside>
+
+    @* ---------------- Columna central: escenario, chat y comparación ---------------- *@
+    <main class="col col-centro">
+        @if (S.Escenario is { } esc)
+        {
+            <div class="tarjeta esc-info">
+                <div class="esc-info-titulo"><span class="esc-letra">@esc.Letra</span> @esc.Titulo <span class="chip">@esc.Slides</span>
+                    <span class="chip">@S.Variante?.Etiqueta</span></div>
+                <p>@esc.Idea</p>
+                <p>@S.Variante?.Descripcion</p>
+                <p class="mirar"><b>Qué mirar:</b> @esc.QueMirar</p>
+            </div>
+        }
+
+        <div class="tarjeta chat">
+            <div class="chat-lista" @ref="lista">
+                @if (S.Transcripcion.Count == 0)
+                {
+                    <div class="chat-vacio">
+                        <p><b>Elegí un escenario</b> a la izquierda: cada botón reinicia la API, configura el contexto, carga la conversación previa y hace la pregunta.</p>
+                        <p>O escribí abajo para chatear en modo libre con las perillas actuales. El panel de la derecha muestra la próxima llamada antes de enviarla.</p>
+                    </div>
+                }
+                @foreach (var item in S.Transcripcion)
+                {
+                    if (item.Compactacion is { } c)
+                    {
+                        <div class="marca-compactacion">✂ Compactación: @c.MensajesResumidos mensajes pasaron al resumen (~@Fmt.N(c.TokensAntes) → ~@Fmt.N(c.TokensDespues) tokens). La persona sigue viendo todo el chat; el modelo, solo el resumen.</div>
+                        continue;
+                    }
+                    var m = item.Mensaje!;
+                    var resumido = !S.EnContexto(m) ? "resumido" : "";
+                    switch (m.Rol)
+                    {
+                        case Rol.Usuario:
+                            <div class="msg msg-usuario @resumido">
+                                @m.Texto
+                                <Etiquetas M="m" Resumido="@(resumido != "")" />
+                            </div>
+                            break;
+                        case Rol.Asistente when m.Llamadas.Count > 0:
+                            @foreach (var l in m.Llamadas)
+                            {
+                                <div class="msg-llamada @resumido">🔧 @l</div>
+                            }
+                            @if (!string.IsNullOrEmpty(m.Texto))
+                            {
+                                <div class="msg msg-asistente @resumido">@m.Texto</div>
+                            }
+                            break;
+                        case Rol.Asistente:
+                            <div class="msg msg-asistente @resumido">
+                                @m.Texto
+                                <Etiquetas M="m" Resumido="@(resumido != "")" />
+                            </div>
+                            break;
+                        default:
+                            <details class="msg-tool @resumido">
+                                <summary>📦 Resultado de <code>@m.Herramienta</code> · @Fmt.N(m.Texto.Length) caracteres @(m.Procesado ? "· procesado" : "")</summary>
+                                <pre>@m.Texto</pre>
+                            </details>
+                            break;
+                    }
+                }
+            </div>
+            @if (S.Error is { } error)
+            {
+                <div class="aviso-error mx-3 mb-2">@error</div>
+            }
+            <div class="chat-estado @(S.Ocupado ? "ocupado" : "")">
+                @(S.Estado ?? (S.Ocupado ? "Trabajando…" : $"Listo · {S.Llamadas.Count} llamadas al modelo en esta conversación"))
+            </div>
+            <form class="composer" @onsubmit="Enviar">
+                <input @bind="texto" placeholder="Escribile al agente de reservas…" disabled="@S.Ocupado" />
+                @if (S.Ocupado)
+                {
+                    <button type="button" class="btn btn-peligro" @onclick="S.Detener">Detener</button>
+                }
+                else
+                {
+                    <button type="submit" class="btn btn-primario" disabled="@string.IsNullOrWhiteSpace(texto)">Enviar</button>
+                }
+            </form>
+        </div>
+
+        @if (S.Escenario is { } escComp)
+        {
+            <div class="tarjeta">
+                <h2>Comparación · misma pregunta, distinto contexto</h2>
+                <div class="comparacion">
+                    @foreach (var v in escComp.Variantes)
+                    {
+                        var r = S.Resultados.GetValueOrDefault($"{escComp.Id}/{v.Id}");
+                        <div class="comp-col @(v.Recomendada ? "recomendada" : "") @(r is null ? "pendiente" : "")">
+                            <h3>@(v.Recomendada ? "✓ " : "")@v.Etiqueta</h3>
+                            @if (r is null)
+                            {
+                                <span>Todavía no se corrió.</span>
+                            }
+                            else
+                            {
+                                <dl>
+                                    <dt>Tokens de entrada (suma)</dt><dd>@Fmt.N(r.TokensEntradaTotal)</dd>
+                                    <dt>Mayor ventana estimada</dt><dd>~@Fmt.N(r.MaxEstimado)</dd>
+                                    <dt>Llamadas al modelo</dt><dd>@r.LlamadasModelo</dd>
+                                    <dt>Tiempo</dt><dd>@Fmt.Seg(r.Tiempo)</dd>
+                                    <dt>¿Desbordó?</dt><dd>@(r.Desbordo ? "⚠ sí" : "no")</dd>
+                                    <dt>Compactaciones</dt><dd>@r.Compactaciones</dd>
+                                    <dt>Tools</dt><dd class="mono" style="font-size:11px">@(r.Tools.Count == 0 ? "—" : string.Join(", ", r.Tools))</dd>
+                                </dl>
+                                <div class="comp-resp">@r.Respuesta</div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </main>
+
+    @* ---------------- Columna derecha: Rayos X ---------------- *@
+    <section class="col">
+        <RayosX @ref="rayos" S="S" VistaPrevia="vistaPrevia" />
+    </section>
+</div>
+
+@if (S.Confirmacion is { } pedido)
+{
+    <div class="modal-fondo">
+        <div class="modal-caja" role="dialog" aria-modal="true">
+            <h3>🛑 El agente quiere ejecutar una acción</h3>
+            <pre>@pedido.Llamada</pre>
+            <p class="sutil mt-2 mb-0">Cambia datos reales en MesaYa.Api. Esta confirmación ocurre fuera del modelo: ningún texto en el contexto puede saltearla.</p>
+            <div class="modal-acciones">
+                <button class="btn btn-secundario" @onclick="() => S.Confirmar(false)">Rechazar</button>
+                <button class="btn btn-primario" @onclick="() => S.Confirmar(true)">Aprobar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    readonly IReadOnlyList<Escenario> escenarios = Catalogo.Todos();
+    IReadOnlyList<ModeloLocal> modelos = [];
+    Ventana? vistaPrevia;
+    RayosX? rayos;
+    ElementReference lista;
+    string texto = "";
+    bool apiOk, ollamaOk;
+    int mensajesRenderizados;
+
+    protected override async Task OnInitializedAsync()
+    {
+        S.Cambio += AlCambiar;
+        apiOk = await Api.Disponible();
+        try
+        {
+            modelos = await Ollama.ListarModelos();
+            ollamaOk = true;
+        }
+        catch (Exception)
+        {
+            ollamaOk = false;
+        }
+        await Refrescar();
+    }
+
+    /// <summary>Recalcula la vista previa de la próxima llamada con las perillas actuales.</summary>
+    async Task Refrescar()
+    {
+        if (S.Ocupado) return;
+        try { vistaPrevia = await S.ArmarVentana(); }
+        catch (Exception) { vistaPrevia = null; }
+    }
+
+    void AlCambiar() => InvokeAsync(async () =>
+    {
+        if (!S.Ocupado) await Refrescar();
+        StateHasChanged();
+    });
+
+    protected override async Task OnAfterRenderAsync(bool primera)
+    {
+        var cantidad = S.Transcripcion.Count;
+        if (cantidad != mensajesRenderizados)
+        {
+            mensajesRenderizados = cantidad;
+            await JS.InvokeVoidAsync("mesaya.alFinal", lista);
+        }
+    }
+
+    void Correr(Escenario e, Variante v)
+    {
+        rayos?.SeguirUltima();
+        _ = S.Correr(e, v);
+    }
+
+    void Enviar()
+    {
+        if (string.IsNullOrWhiteSpace(texto) || S.Ocupado) return;
+        var t = texto;
+        texto = "";
+        rayos?.SeguirUltima();
+        _ = S.Enviar(t);
+    }
+
+    async Task NuevaConversacion()
+    {
+        S.NuevaConversacion();
+        await Refrescar();
+    }
+
+    async Task CambiarCliente(ChangeEventArgs e)
+    {
+        S.CambiarCliente(e.Value?.ToString() == "martin");
+        await Refrescar();
+    }
+
+    public void Dispose()
+    {
+        S.Cambio -= AlCambiar;
+        S.Detener();
+    }
+}

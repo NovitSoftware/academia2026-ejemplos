@@ -1,0 +1,47 @@
+name: mesaya-rag
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg17
+    environment:
+      POSTGRES_USER: mesaya
+      POSTGRES_PASSWORD: mesaya   # credenciales locales solo para la demo
+      POSTGRES_DB: mesaya_rag
+    ports:
+      - "5433:5432"
+    volumes:
+      # Solo se ejecuta la primera vez, con el volumen vacío.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/funciones.sql:/docker-entrypoint-initdb.d/02-funciones.sql:ro
+      - ./db:/sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mesaya -d mesaya_rag"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Cross-encoder para el reranking (slide 14). Es opcional:
+  #   docker compose --profile reranker up -d
+  # La primera vez descarga el modelo (~2,3 GB) en el volumen hf-cache.
+  # API: POST http://localhost:7997/rerank {"model": "BAAI/bge-reranker-v2-m3", "query": "...", "documents": ["..."]}
+  reranker:
+    image: michaelf34/infinity:0.0.77-cpu
+    profiles: ["reranker"]
+    environment:
+      DO_NOT_TRACK: "1"         # desactiva la telemetría anónima de Infinity
+    command: ["v2", "--model-id", "BAAI/bge-reranker-v2-m3", "--port", "7997", "--engine", "torch", "--device", "cpu"]
+    ports:
+      - "7997:7997"
+    volumes:
+      - hf-cache:/app/.cache
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:7997/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+
+volumes:
+  pgdata:
+  hf-cache:

@@ -1,0 +1,77 @@
+@* Muestra la ventana tal como se envía: un bloque por tramo, en orden, con el color de su tipo. *@
+
+<div class="leyenda">
+    @foreach (var t in Enum.GetValues<Tipo>())
+    {
+        <span class="@Fmt.Clase(t)"><span class="punto"></span>@Presupuesto.Nombre(t)</span>
+    }
+    <span class="ms-auto d-flex gap-2">
+        <button class="btn-var" @onclick="() => todos = !todos">@(todos ? "Contraer todo" : "Expandir todo")</button>
+        <button class="btn-var @(json ? "actual" : "")" @onclick="() => json = !json">JSON crudo</button>
+    </span>
+</div>
+
+@if (json)
+{
+    <p class="sutil mb-2">Cuerpo exacto del <code>POST /api/chat</code> a Ollama. Las definiciones de herramientas van en <code>tools</code>; el resto, en <code>messages</code>.</p>
+    <pre class="json-crudo">@V.Cuerpo.ToJsonString(Herramientas.JsonIndentado)</pre>
+}
+else
+{
+    @for (var i = 0; i < V.Bloques.Count; i++)
+    {
+        var idx = i;
+        var b = V.Bloques[i];
+        var abierto = todos || abiertos.Contains(idx);
+        <div class="bloque @Fmt.Clase(b.Tipo) @(b.FueraDeVentana ? "fuera" : "")">
+            <div class="bloque-cab" @onclick="() => Alternar(idx)" title="Clic para expandir">
+                <span class="bloque-orden">@(idx + 1)</span>
+                <span class="bloque-rol">@b.Rol</span>
+                <b>@b.Titulo</b>
+                <span class="chip">@Presupuesto.Nombre(b.Componente)</span>
+                @if (b.Nota is not null)
+                {
+                    <span class="bloque-nota">@b.Nota</span>
+                }
+                @if (b.FueraDeVentana)
+                {
+                    <span class="bloque-nota critica">✂ no entra: Ollama lo descarta</span>
+                }
+                <span class="bloque-tok">~@Fmt.N(b.Tokens) tok</span>
+            </div>
+            <pre class="bloque-texto @(abierto ? "" : "cerrado")">@b.Texto</pre>
+        </div>
+    }
+}
+
+@if (Llamada is not null)
+{
+    <div class="salida-modelo">
+        <b>Respuesta del modelo en esta llamada:</b>
+        @if (Llamada.Llamadas.Count > 0)
+        {
+            @foreach (var l in Llamada.Llamadas)
+            {
+                <div class="mono">🔧 @l</div>
+            }
+        }
+        @if (!string.IsNullOrEmpty(Llamada.Texto))
+        {
+            <div>@Llamada.Texto</div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public Ventana V { get; set; } = default!;
+    [Parameter] public LlamadaModelo? Llamada { get; set; }
+
+    readonly HashSet<int> abiertos = [];
+    bool todos;
+    bool json;
+
+    void Alternar(int i)
+    {
+        if (!abiertos.Add(i)) abiertos.Remove(i);
+    }
+}

@@ -1,0 +1,122 @@
+@* Pestaña Ranking (slides 10, 11 y 14): posición en cada lista, cálculo de RRF, reranking y qué entra al contexto. *@
+
+@if (Turno.Busqueda is not { } b)
+{
+    <p class="vacio">@(Turno.Error ?? "Buscando…")</p>
+}
+else
+{
+    <p class="leyenda">
+        RRF(d) = Σ 1 / (@b.Consulta.RrfK + posición). Gana lo que rankea bien en ambas listas.
+        @if (Turno.Rerank is { } hecho)
+        {
+            <text>Después, @hecho.Modelo leyó consulta y fragmento juntos (@hecho.Resultados.Count pares en @Duracion(hecho.Duracion)) y reordenó los candidatos.</text>
+        }
+        Las filas resaltadas son las @Turno.Seleccionados.Count que entran al contexto del modelo.
+    </p>
+
+    @if (b.Resultados.Count == 0 && b.Descartados.Count == 0)
+    {
+        <p class="vacio">La búsqueda no devolvió resultados.</p>
+    }
+    else
+    {
+        <div class="tabla-ranking">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        @if (Turno.Rerank is not null)
+                        {
+                            <th title="Puntaje de relevancia del cross-encoder y movimiento respecto de RRF">Reranker</th>
+                        }
+                        <th title="Posición en la búsqueda semántica y distancia coseno">Semántica</th>
+                        <th title="Posición en la búsqueda por palabras clave y puntaje IDF">Palabras clave</th>
+                        <th>RRF</th>
+                        <th>Fragmento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (r, rr) in Filas(b))
+                    {
+                        var enContexto = Turno.Seleccionados.Contains(r);
+                        <tr class="@(enContexto ? "en-contexto" : "")">
+                            <td class="pos">@(rr?.Posicion ?? r.Posicion)</td>
+                            @if (rr is not null)
+                            {
+                                <td>
+                                    <span class="valor">@rr.Puntaje.ToString("F3")</span>
+                                    <span class="movimiento @Movimiento(r.Posicion, rr.Posicion).Clase">@Movimiento(r.Posicion, rr.Posicion).Texto</span>
+                                </td>
+                            }
+                            <td>@Lista(r.PosSemantica, r.Distancia is { } d ? $"d = {d:F3}" : null)</td>
+                            <td>@Lista(r.PosPalabrasClave, r.PuntajePalabrasClave is { } p ? $"idf = {p:F2}" : null)</td>
+                            <td class="rrf">
+                                <span class="valor">@r.Rrf.ToString("F4")</span>
+                                @if (rr is not null) { <span class="calculo">#@r.Posicion por RRF</span> }
+                                <span class="calculo">@Calculo(r, b.Consulta.RrfK)</span>
+                            </td>
+                            <td><Fragmento Chunk="r.Chunk" EnContexto="enContexto" /></td>
+                        </tr>
+                    }
+                    @foreach (var r in b.Descartados)
+                    {
+                        <tr class="descartado">
+                            <td class="pos">✗</td>
+                            @if (Turno.Rerank is not null) { <td></td> }
+                            <td>@Lista(r.PosSemantica, null)</td>
+                            <td>@Lista(r.PosPalabrasClave, null)</td>
+                            <td class="rrf"><span class="valor">@r.Rrf.ToString("F4")</span></td>
+                            <td>
+                                <Fragmento Chunk="r.Chunk" />
+                                <span class="motivo">Estaba en el top-@b.Consulta.K y el host lo sacó por permisos: no queda nadie para reemplazarlo.</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (b.Agrupados.Count > 0)
+        {
+            <p class="leyenda">@b.Agrupados.Count hijos más se omitieron porque su sección padre ya estaba más arriba.</p>
+        }
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public TurnoRag Turno { get; set; } = default!;
+
+    /// <summary>Con reranker, las filas siguen el orden del cross-encoder; sin reranker, el de RRF.</summary>
+    IEnumerable<(Resultado, ResultadoRerank?)> Filas(ResultadoBusqueda b) =>
+        Turno.Rerank is { } rr
+            ? rr.Resultados.Select(x => (x.Original, (ResultadoRerank?)x))
+            : b.Resultados.Select(x => (x, (ResultadoRerank?)null));
+
+    static (string Texto, string Clase) Movimiento(int antes, int despues) => (antes - despues) switch
+    {
+        > 0 and var n => ($"▲ {n}", "sube"),
+        < 0 and var n => ($"▼ {-n}", "baja"),
+        _ => ("=", "igual")
+    };
+
+    static string Duracion(TimeSpan d) => d.TotalSeconds >= 1 ? $"{d.TotalSeconds:F1} s" : $"{d.TotalMilliseconds:F0} ms";
+
+    static RenderFragment Lista(long? posicion, string? detalle) => __builder =>
+    {
+        if (posicion is null)
+        {
+            <span class="ausente" title="No apareció en esta lista">—</span>
+        }
+        else
+        {
+            <span class="posicion">@posicion</span>
+            @if (detalle is not null) { <span class="detalle">@detalle</span> }
+        }
+    };
+
+    static string Calculo(Resultado r, int k)
+    {
+        var partes = new[] { r.PosSemantica, r.PosPalabrasClave }.Where(p => p is not null).Select(p => $"1/({k}+{p})");
+        return string.Join(" + ", partes);
+    }
+}

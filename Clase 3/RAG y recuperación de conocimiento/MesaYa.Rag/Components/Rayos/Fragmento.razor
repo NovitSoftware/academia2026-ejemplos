@@ -1,0 +1,40 @@
+@* Un chunk con su origen y metadata; el texto se despliega al hacer clic. *@
+
+<details class="fragmento">
+    <summary>
+        <span class="doc">@Chunk.DocumentId</span>
+        <span class="seccion">@SeccionCorta(Chunk.SeccionParaElModelo)</span>
+        @if (!Chunk.Vigente) { <span class="insignia deprecated">deprecated · @Chunk.Fecha.Year</span> }
+        @if (Chunk.TenantId != "mesaya-ar") { <span class="insignia tenant">@Chunk.TenantId</span> }
+        @if (!Chunk.Audiencia.Contains("clientes")) { <span class="insignia audiencia">@string.Join(", ", Chunk.Audiencia)</span> }
+        @if (EnContexto) { <span class="insignia contexto">al contexto</span> }
+    </summary>
+    @if (Chunk.ContentPadre is not null)
+    {
+        <p class="rotulo">Hijo que coincidió</p>
+        <pre class="texto">@Chunk.Content</pre>
+        <p class="rotulo">Sección padre que recibe el modelo</p>
+        <pre class="texto">@Chunk.ContentPadre</pre>
+    }
+    else
+    {
+        @if (Chunk.TextoEmbed != Chunk.Content)
+        {
+            <p class="rotulo">Texto embebido (con contexto)</p>
+            <pre class="texto">@Chunk.TextoEmbed</pre>
+        }
+        else
+        {
+            <pre class="texto">@Chunk.Content</pre>
+        }
+    }
+    <p class="origen">@Chunk.Fuente · v@(Chunk.Version) · @Chunk.Fecha.ToString("yyyy-MM-dd") · @Chunk.Estrategia · chunk @Chunk.Id</p>
+</details>
+
+@code {
+    [Parameter, EditorRequired] public ChunkRecuperado Chunk { get; set; } = default!;
+    [Parameter] public bool EnContexto { get; set; }
+
+    static string SeccionCorta(string ruta) =>
+        ruta.Split(" › ", 2) is [_, var resto] ? resto : "(introducción)";
+}

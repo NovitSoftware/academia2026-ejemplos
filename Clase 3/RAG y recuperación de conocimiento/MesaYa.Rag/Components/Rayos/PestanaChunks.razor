@@ -1,0 +1,107 @@
+@* Pestaña Chunks (slides 05 y 06): el mismo documento cortado con cada estrategia. *@
+@inject Ingestor Ingestor
+
+<div class="chunks-acciones">
+    <label>Documento
+        <select @bind="documentId">
+            @foreach (var d in documentos)
+            {
+                <option value="@d.DocumentId">@d.DocumentId</option>
+            }
+        </select>
+    </label>
+    <p class="leyenda">
+        @if (Columna(Turno.Opciones.Estrategia) is { } col)
+        {
+            <text>En la columna <strong>@Nombre(col)</strong> se marcan los fragmentos que este turno recuperó.</text>
+        }
+        La estrategia contextual corta igual que la estructural; solo cambia el texto que se embebe.
+    </p>
+</div>
+
+@if (doc is null)
+{
+    <p class="vacio">Elegí un documento.</p>
+}
+else
+{
+    <div class="columnas-chunks">
+        @foreach (var estrategia in Columnas)
+        {
+            var chunks = cortes.Where(c => c.Estrategia == estrategia).ToList();
+            <section class="columna-chunks">
+                <h3>@Nombre(estrategia) <span class="detalle">@chunks.Count chunks</span></h3>
+                @foreach (var c in chunks)
+                {
+                    var marca = Marca(c);
+                    <article class="chunk @marca.Clase">
+                        <header>
+                            <span class="pos">#@c.Posicion</span>
+                            <span class="detalle">~@c.Tokens tokens</span>
+                            @if (marca.Texto is not null) { <span class="insignia @marca.Clase">@marca.Texto</span> }
+                        </header>
+                        <p class="secciones">@string.Join(" | ", c.Secciones.Select(s => s.Length == 0 ? "(intro)" : s))</p>
+                        <pre class="texto">@c.Content</pre>
+                    </article>
+                }
+            </section>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public TurnoRag Turno { get; set; } = default!;
+
+    static readonly string[] Columnas = [Estrategias.Fijo, Estrategias.Recursivo, Estrategias.Estructural, Estrategias.Hijo];
+
+    IReadOnlyList<Documento> documentos = [];
+    string documentoElegido = "";
+    TurnoRag? ultimoTurno;
+    List<Chunk> cortes = [];
+    Documento? doc;
+
+    string documentId
+    {
+        get => documentoElegido;
+        set { documentoElegido = value; Cortar(); }
+    }
+
+    protected override void OnInitialized() => documentos = Ingestor.LeerCorpus();
+
+    protected override void OnParametersSet()
+    {
+        if (ultimoTurno == Turno) return;
+        ultimoTurno = Turno;
+        // Por defecto, el documento del primer fragmento que llegó al contexto.
+        var primero = Turno.Seleccionados.FirstOrDefault()?.Chunk.DocumentId ?? documentos.FirstOrDefault()?.DocumentId ?? "";
+        documentId = primero;
+    }
+
+    void Cortar()
+    {
+        doc = documentos.FirstOrDefault(d => d.DocumentId == documentoElegido);
+        cortes = doc is null ? [] : Estrategias.Cortar(doc).ToList();
+    }
+
+    static string? Columna(string estrategia) => estrategia == Estrategias.Contextual ? Estrategias.Estructural : estrategia;
+
+    (string Clase, string? Texto) Marca(Chunk c)
+    {
+        if (Columna(Turno.Opciones.Estrategia) != c.Estrategia || Turno.Busqueda is not { } b) return ("", null);
+        bool Es(Resultado r) => r.Chunk.DocumentId == c.Doc.DocumentId && r.Chunk.Posicion == c.Posicion;
+        if (Turno.Seleccionados.FirstOrDefault(Es) is { } s)
+            return ("al-contexto", $"al contexto · #{Turno.Seleccionados.ToList().IndexOf(s) + 1}");
+        if (b.Resultados.FirstOrDefault(Es) is { } r)
+            return ("recuperado", $"recuperado #{r.Posicion}");
+        return ("", null);
+    }
+
+    static string Nombre(string e) => e switch
+    {
+        Estrategias.Fijo => "Fijo 150",
+        Estrategias.Recursivo => "Recursivo 512",
+        Estrategias.Estructural => "Estructural",
+        Estrategias.Hijo => "Parent–child (hijos)",
+        _ => e
+    };
+}
