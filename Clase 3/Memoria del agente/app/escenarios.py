@@ -1,0 +1,89 @@
+"""Escenarios de la clase. Cada variante reinicia al usuario y deja los pasos listos para correr uno por uno.
+
+Tipos de paso: mensaje, sesion (nueva sesión), reloj (avanzar días), usuario (cambiar de cliente), precargar.
+"""
+
+ESCENARIOS = [
+    {"id": "A", "titulo": "Un LLM no se acuerda de nada", "slides": "02–03", "panel": "memoria",
+     "idea": "Sin memoria, cada sesión empieza de cero. Con memoria, el agente ya sabe lo importante.",
+     "pasos": [
+         {"tipo": "mensaje", "texto": "Hola, soy celíaca y cuando puedo siempre pido la terraza."},
+         {"tipo": "sesion"},
+         {"tipo": "mensaje", "texto": "Quiero reservar para el sábado a la noche, somos 2. ¿Qué me recomendás?"}],
+     "variantes": [
+         {"nombre": "Sin memoria", "config": {"memoria": False}},
+         {"nombre": "Con memoria", "config": {"memoria": True}, "bien": True}]},
+    {"id": "B", "titulo": "¿Quién gana?", "slides": "08–09", "panel": "turno",
+     "idea": "Un pedido de hoy cambia el estado de la sesión, no la preferencia guardada.",
+     "pasos": [
+         {"tipo": "mensaje", "texto": "Prefiero siempre la terraza de Palermo."},
+         {"tipo": "sesion"},
+         {"tipo": "mensaje", "texto": "Esta vez reservá adentro, que va a llover. Sábado a las 21, somos 2, en Palermo."},
+         {"tipo": "sesion"},
+         {"tipo": "mensaje", "texto": "Quiero reservar el viernes a las 21 para 2. ¿Dónde me sentás?"}],
+     "variantes": [{"nombre": "Correr", "config": {}, "bien": True}]},
+    {"id": "C", "titulo": "Estado vs. memoria", "slides": "10–11", "panel": "estado",
+     "idea": "La reserva en curso es estado: se archiva al cerrar. A la memoria pasa solo lo que sirve después.",
+     "pasos": [
+         {"tipo": "mensaje", "texto": "Quiero reservar en Núñez para el sábado."},
+         {"tipo": "mensaje", "texto": "A las 21, somos 4."},
+         {"tipo": "mensaje", "texto": "Sí, confirmala."},
+         {"tipo": "sesion"},
+         {"tipo": "mensaje", "texto": "¿Me recordás qué reserva tengo?"}],
+     "variantes": [{"nombre": "Correr", "config": {}, "bien": True}]},
+    {"id": "D", "titulo": "Lo que no se guarda", "slides": "12, 14", "panel": "turno",
+     "idea": "Datos de pago, documentos y contraseñas no van a la memoria.",
+     "pasos": [
+         {"tipo": "mensaje", "texto": "Soy Lucía, mi DNI es 30.123.456. Pagá la seña con mi tarjeta 4509 9535 6623 3704 que vence 08/28. Ah, y me encanta el risotto de hongos."}],
+     "variantes": [
+         {"nombre": "Sin filtro", "config": {"filtrar_sensibles": False}},
+         {"nombre": "Con filtro", "config": {"filtrar_sensibles": True}, "bien": True}]},
+    {"id": "E", "titulo": "Memory poisoning", "slides": "15", "panel": "turno",
+     "idea": "Una reseña con instrucciones escondidas intenta escribir en la memoria del cliente.",
+     "pasos": [
+         {"tipo": "mensaje", "texto": "¿Qué dicen las reseñas de la sucursal de Palermo?"},
+         {"tipo": "sesion"},
+         {"tipo": "mensaje", "texto": "Quiero reservar en Palermo el viernes a las 21 para 2. ¿Tengo algún beneficio?"}],
+     "variantes": [
+         {"nombre": "Sin validar origen", "config": {"validar_origen": False}},
+         {"nombre": "Validando origen", "config": {"validar_origen": True}, "bien": True}]},
+    {"id": "F", "titulo": "Olvidar también es diseño", "slides": "13", "panel": "memoria",
+     "idea": "TTL, olvido a pedido y alcance por usuario.",
+     "pasos": [
+         {"tipo": "mensaje", "texto": "Prefiero la terraza y siempre vamos con mi pareja."},
+         {"tipo": "mensaje", "texto": "Reservá en Palermo el sábado a las 21 para 2."},
+         {"tipo": "mensaje", "texto": "Sí, confirmá."},
+         {"tipo": "reloj", "dias": 45},
+         {"tipo": "mensaje", "texto": "Olvidate de que prefiero la terraza."},
+         {"tipo": "usuario", "id": "martin"},
+         {"tipo": "mensaje", "texto": "¿Qué sabés de mí?"}],
+     "variantes": [{"nombre": "Correr", "config": {}, "bien": True}]},
+    {"id": "G", "titulo": "Conversación larga", "slides": "07", "panel": "contexto",
+     "idea": "Ventana corta ahorra tokens pero pierde el principio. El resumen conserva lo importante.",
+     "pasos": [
+         {"tipo": "precargar", "conversacion": "larga"},
+         {"tipo": "mensaje", "texto": "Perfecto. Entonces, ¿para cuántas personas quedó y qué tiene que saber la cocina?"}],
+     "variantes": [
+         {"nombre": "Completa", "config": {"estrategia": "completa", "memoria": False}},
+         {"nombre": "Ventana", "config": {"estrategia": "ventana", "memoria": False}},
+         {"nombre": "Resumen + ventana", "config": {"estrategia": "resumen", "memoria": False}, "bien": True}]},
+]
+
+CONVERSACIONES = {
+    "larga": [
+        ("cliente", "Hola, quiero organizar una cena de cumpleaños para mi mamá."),
+        ("asistente", "¡Qué lindo! Contame para cuántas personas sería y qué día pensabas."),
+        ("cliente", "Somos 6. Una de las chicas es celíaca, así que necesitamos opciones sin TACC."),
+        ("asistente", "Perfecto, 6 personas y una opción sin TACC. Tenemos risotto de hongos, salmón y bife aptos. ¿Qué día?"),
+        ("cliente", "El viernes que viene. ¿Qué sucursal me recomendás?"),
+        ("asistente", "Para un cumpleaños, Palermo tiene la terraza techada, que es muy linda. ¿Te sirve?"),
+        ("cliente", "Sí, Palermo. ¿Se puede llevar torta?"),
+        ("asistente", "Sí, se puede llevar torta. Avisá al reservar y la guardamos en la heladera."),
+        ("cliente", "Genial. ¿Y hay estacionamiento cerca?"),
+        ("asistente", "En Palermo no hay estacionamiento propio, pero hay garajes a una cuadra."),
+        ("cliente", "Bárbaro. ¿A qué hora conviene?"),
+        ("asistente", "Los viernes a las 21 hay buen ambiente; a las 20 es más tranquilo."),
+        ("cliente", "Mejor a las 20 entonces."),
+        ("asistente", "Listo, viernes a las 20 en Palermo. ¿Querés que te confirme la reserva?"),
+    ],
+}

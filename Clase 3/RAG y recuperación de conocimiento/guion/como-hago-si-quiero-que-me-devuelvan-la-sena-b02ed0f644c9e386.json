@@ -1,5 +1,5 @@
 {
-  "Fecha": "2026-10-30T21:41:17.6269969-03:00",
+  "Fecha": "2026-11-03T17:17:42.667634-03:00",
   "Pregunta": "\u00BFC\u00F3mo hago si quiero que me devuelvan la se\u00F1a?",
   "Historial": [],
   "Opciones": {
@@ -755,8 +755,8 @@
     "Descartados": [],
     "Agrupados": [],
     "TsQuery": "\u0027com\u0027 | \u0027hag\u0027 | \u0027si\u0027 | \u0027quier\u0027 | \u0027devuelv\u0027 | \u0027se\u00F1\u0027",
-    "TiempoEmbedding": "00:00:00.0826120",
-    "TiempoSql": "00:00:00.0177805",
+    "TiempoEmbedding": "00:00:02.3375190",
+    "TiempoSql": "00:00:00.0343656",
     "Sql": "WITH sem AS (\n  SELECT id, ROW_NUMBER() OVER (ORDER BY embedding \u003C=\u003E @embedding) AS r,\n         embedding \u003C=\u003E @embedding AS distancia\n    FROM chunks c\n   WHERE c.estrategia = @estrategia\n        AND c.tenant_id = @tenant\n        AND @perfil = ANY (c.audiencia)\n        AND c.vigente\n   ORDER BY embedding \u003C=\u003E @embedding\n   LIMIT @candidatos\n), kw AS (\n  SELECT id, ROW_NUMBER() OVER (ORDER BY puntaje DESC, id) AS r, puntaje\n    FROM (\n      SELECT c.id, sum(i.idf) AS puntaje\n        FROM chunks c\n        CROSS JOIN consulta_or(@texto) AS q\n        JOIN (SELECT DISTINCT unnest(tsvector_to_array(to_tsvector(\u0027spanish\u0027, @texto))) AS lexema) t\n          ON t.lexema = ANY (tsvector_to_array(c.tsv))\n        JOIN lexemas_idf i ON i.estrategia = c.estrategia AND i.lexema = t.lexema\n       WHERE c.estrategia = @estrategia\n                       AND c.tenant_id = @tenant\n                       AND @perfil = ANY (c.audiencia)\n                       AND c.vigente\n         AND c.tsv @@ q\n       GROUP BY c.id\n    ) puntajes\n   ORDER BY puntaje DESC, id\n   LIMIT @candidatos\n), fusion AS (\n  SELECT COALESCE(sem.id, kw.id) AS id,\n         sem.r AS pos_sem, sem.distancia,\n         kw.r  AS pos_kw,  kw.puntaje,\n         COALESCE(1.0 / (@rrf_k \u002B sem.r), 0)\n       \u002B COALESCE(1.0 / (@rrf_k \u002B kw.r), 0) AS rrf\n    FROM sem FULL JOIN kw ON sem.id = kw.id\n)\nSELECT f.pos_sem, f.distancia, f.pos_kw, f.puntaje, f.rrf::float8,\n       c.id, c.document_id, c.titulo, c.seccion, c.metadata -\u003E \u0027secciones\u0027, c.fuente, c.estrategia,\n       c.tenant_id, c.audiencia, c.version, c.fecha, c.vigente, c.content, c.texto_embed,\n       c.parent_id, p.content, p.seccion, c.posicion\n  FROM fusion f\n  JOIN chunks c ON c.id = f.id\n  LEFT JOIN chunks p ON p.id = c.parent_id\n ORDER BY f.rrf DESC, LEAST(f.pos_sem, f.pos_kw), c.id\n LIMIT @k",
     "VectorConsulta": [
       -0.061230917,
@@ -1802,18 +1802,18 @@
       },
       {
         "Role": "user",
-        "Content": "\u003Cdocumentos\u003E\n\u003Cdocumento n=\u00221\u0022 id=\u0022reembolso-senas\u0022 seccion=\u0022Reembolso de se\u00F1as \u203A Cu\u00E1ndo corresponde el reembolso\u0022 version=\u00222\u0022 fecha=\u00222026-08-01\u0022 estado=\u0022vigente\u0022\u003E\n## Cu\u00E1ndo corresponde el reembolso\n\nEl reembolso de la se\u00F1a corresponde cuando la reserva se cancela dentro de los plazos de la pol\u00EDtica de cancelaci\u00F3n vigente, o cuando MesaYa cancela la reserva por fuerza mayor. Si la cancelaci\u00F3n es tard\u00EDa, se reembolsa solo la parte que indica esa pol\u00EDtica.\n\u003C/documento\u003E\n\u003Cdocumento n=\u00222\u0022 id=\u0022pol-cancel-v3\u0022 seccion=\u0022Pol\u00EDtica de cancelaci\u00F3n de reservas \u203A Plazos para cancelar sin cargo\u0022 version=\u00223\u0022 fecha=\u00222026-08-01\u0022 estado=\u0022vigente\u0022\u003E\n## Plazos para cancelar sin cargo\n\nLas reservas se pueden cancelar sin cargo hasta 2 horas antes del horario reservado. La cancelaci\u00F3n se hace desde el enlace del correo de confirmaci\u00F3n, desde la aplicaci\u00F3n de MesaYa o llamando a la sucursal. Cuando la reserva se cancela dentro de ese plazo, la se\u00F1a se devuelve completa por el mismo medio de pago con el que se abon\u00F3, seg\u00FAn lo que indica la pol\u00EDtica de reembolso de se\u00F1as. No hace falta explicar el motivo de la cancelaci\u00F3n ni presentar ning\u00FAn comprobante. Si el cliente prefiere, en lugar de cancelar puede cambiar la fecha o el horario de la reserva una sola vez, tambi\u00E9n sin cargo y con el mismo plazo de 2 horas, siempre que haya disponibilidad en la sucursal elegida.\n\nEsta regla tiene una excepci\u00F3n. Los eventos privados y las reservas de grupos de m\u00E1s de 8 personas solo se pueden cancelar sin cargo hasta 72 horas antes del horario reservado. Pasado ese plazo, MesaYa retiene la se\u00F1a completa, porque esas reservas obligan a la cocina a comprar mercader\u00EDa y a reforzar el personal del turno.\n\u003C/documento\u003E\n\u003Cdocumento n=\u00223\u0022 id=\u0022pol-cancel-v3\u0022 seccion=\u0022Pol\u00EDtica de cancelaci\u00F3n de reservas \u203A Casos de fuerza mayor\u0022 version=\u00223\u0022 fecha=\u00222026-08-01\u0022 estado=\u0022vigente\u0022\u003E\n## Casos de fuerza mayor\n\nAnte cortes de luz, cierres de la sucursal o alertas meteorol\u00F3gicas oficiales, MesaYa cancela la reserva y devuelve la se\u00F1a completa, sin importar el plazo.\n\u003C/documento\u003E\n\u003Cdocumento n=\u00224\u0022 id=\u0022pol-cancel-v3\u0022 seccion=\u0022Pol\u00EDtica de cancelaci\u00F3n de reservas \u203A Cancelaciones fuera de plazo\u0022 version=\u00223\u0022 fecha=\u00222026-08-01\u0022 estado=\u0022vigente\u0022\u003E\n## Cancelaciones fuera de plazo\n\nSi una reserva com\u00FAn se cancela con menos de 2 horas de anticipaci\u00F3n, MesaYa retiene el 50 % de la se\u00F1a. Si el cliente no se presenta y no avisa, la reserva se considera no-show y se retiene la se\u00F1a completa.\n\u003C/documento\u003E\n\u003Cdocumento n=\u00225\u0022 id=\u0022eventos-privados\u0022 seccion=\u0022Eventos privados y grupos \u203A C\u00F3mo contratar un evento\u0022 version=\u00223\u0022 fecha=\u00222026-06-10\u0022 estado=\u0022vigente\u0022\u003E\n## C\u00F3mo contratar un evento\n\nEl pedido se hace a eventos@mesaya.example con la fecha, la cantidad de personas y la sucursal. El equipo de eventos env\u00EDa un presupuesto dentro de las 48 horas. Para confirmar, se abona una se\u00F1a del 30 % del presupuesto. Las condiciones de cancelaci\u00F3n son las de la pol\u00EDtica de cancelaci\u00F3n vigente.\n\u003C/documento\u003E\n\u003C/documentos\u003E\n\n\u003Cpregunta\u003E\u00BFC\u00F3mo hago si quiero que me devuelvan la se\u00F1a?\u003C/pregunta\u003E\nFecha de hoy: 2026-10-30."
+        "Content": "\u003Cdocumentos\u003E\n\u003Cdocumento n=\u00221\u0022 id=\u0022reembolso-senas\u0022 seccion=\u0022Reembolso de se\u00F1as \u203A Cu\u00E1ndo corresponde el reembolso\u0022 version=\u00222\u0022 fecha=\u00222026-08-01\u0022 estado=\u0022vigente\u0022\u003E\n## Cu\u00E1ndo corresponde el reembolso\n\nEl reembolso de la se\u00F1a corresponde cuando la reserva se cancela dentro de los plazos de la pol\u00EDtica de cancelaci\u00F3n vigente, o cuando MesaYa cancela la reserva por fuerza mayor. Si la cancelaci\u00F3n es tard\u00EDa, se reembolsa solo la parte que indica esa pol\u00EDtica.\n\u003C/documento\u003E\n\u003Cdocumento n=\u00222\u0022 id=\u0022pol-cancel-v3\u0022 seccion=\u0022Pol\u00EDtica de cancelaci\u00F3n de reservas \u203A Plazos para cancelar sin cargo\u0022 version=\u00223\u0022 fecha=\u00222026-08-01\u0022 estado=\u0022vigente\u0022\u003E\n## Plazos para cancelar sin cargo\n\nLas reservas se pueden cancelar sin cargo hasta 2 horas antes del horario reservado. La cancelaci\u00F3n se hace desde el enlace del correo de confirmaci\u00F3n, desde la aplicaci\u00F3n de MesaYa o llamando a la sucursal. Cuando la reserva se cancela dentro de ese plazo, la se\u00F1a se devuelve completa por el mismo medio de pago con el que se abon\u00F3, seg\u00FAn lo que indica la pol\u00EDtica de reembolso de se\u00F1as. No hace falta explicar el motivo de la cancelaci\u00F3n ni presentar ning\u00FAn comprobante. Si el cliente prefiere, en lugar de cancelar puede cambiar la fecha o el horario de la reserva una sola vez, tambi\u00E9n sin cargo y con el mismo plazo de 2 horas, siempre que haya disponibilidad en la sucursal elegida.\n\nEsta regla tiene una excepci\u00F3n. Los eventos privados y las reservas de grupos de m\u00E1s de 8 personas solo se pueden cancelar sin cargo hasta 72 horas antes del horario reservado. Pasado ese plazo, MesaYa retiene la se\u00F1a completa, porque esas reservas obligan a la cocina a comprar mercader\u00EDa y a reforzar el personal del turno.\n\u003C/documento\u003E\n\u003Cdocumento n=\u00223\u0022 id=\u0022pol-cancel-v3\u0022 seccion=\u0022Pol\u00EDtica de cancelaci\u00F3n de reservas \u203A Casos de fuerza mayor\u0022 version=\u00223\u0022 fecha=\u00222026-08-01\u0022 estado=\u0022vigente\u0022\u003E\n## Casos de fuerza mayor\n\nAnte cortes de luz, cierres de la sucursal o alertas meteorol\u00F3gicas oficiales, MesaYa cancela la reserva y devuelve la se\u00F1a completa, sin importar el plazo.\n\u003C/documento\u003E\n\u003Cdocumento n=\u00224\u0022 id=\u0022pol-cancel-v3\u0022 seccion=\u0022Pol\u00EDtica de cancelaci\u00F3n de reservas \u203A Cancelaciones fuera de plazo\u0022 version=\u00223\u0022 fecha=\u00222026-08-01\u0022 estado=\u0022vigente\u0022\u003E\n## Cancelaciones fuera de plazo\n\nSi una reserva com\u00FAn se cancela con menos de 2 horas de anticipaci\u00F3n, MesaYa retiene el 50 % de la se\u00F1a. Si el cliente no se presenta y no avisa, la reserva se considera no-show y se retiene la se\u00F1a completa.\n\u003C/documento\u003E\n\u003Cdocumento n=\u00225\u0022 id=\u0022eventos-privados\u0022 seccion=\u0022Eventos privados y grupos \u203A C\u00F3mo contratar un evento\u0022 version=\u00223\u0022 fecha=\u00222026-06-10\u0022 estado=\u0022vigente\u0022\u003E\n## C\u00F3mo contratar un evento\n\nEl pedido se hace a eventos@mesaya.example con la fecha, la cantidad de personas y la sucursal. El equipo de eventos env\u00EDa un presupuesto dentro de las 48 horas. Para confirmar, se abona una se\u00F1a del 30 % del presupuesto. Las condiciones de cancelaci\u00F3n son las de la pol\u00EDtica de cancelaci\u00F3n vigente.\n\u003C/documento\u003E\n\u003C/documentos\u003E\n\n\u003Cpregunta\u003E\u00BFC\u00F3mo hago si quiero que me devuelvan la se\u00F1a?\u003C/pregunta\u003E\nFecha de hoy: 2026-11-03."
       }
     ],
     "TokensAprox": 921
   },
-  "Respuesta": "Para que te devuelvan la se\u00F1a, tu reserva debe cancelarse dentro de los plazos establecidos o por fuerza mayor [1][2][3]. Si cancel\u00E1s con menos de 2 horas de anticipaci\u00F3n (o si no avis\u00E1s y no te present\u00E1s), MesaYa retiene parte o toda la se\u00F1a seg\u00FAn corresponda [4].",
+  "Respuesta": "Para que te devuelvan la se\u00F1a, ten\u00E9s que cancelar tu reserva dentro de los plazos establecidos por la pol\u00EDtica vigente [2]. Si lo hac\u00E9s a tiempo (hasta 2 horas antes para reservas comunes o 72 para grupos grandes), te devuelven el dinero completo [2][4]. Tambi\u00E9n pod\u00E9s pedirlo si MesaYa cancela la reserva por fuerza mayor, como un corte de luz o una alerta meteorol\u00F3gica [3].\n\nSi cancel\u00E1s con menos de 2 horas de anticipaci\u00F3n (o 72 para grupos), te retienen el 50 % de la se\u00F1a [4]. Si no avis\u00E1s y no te present\u00E1s, te retienen el 100 % [4].",
   "Uso": {
     "TokensEntrada": 992,
-    "TokensSalida": 73,
-    "Carga": "00:00:00.0010686",
-    "EvaluacionEntrada": "00:00:02.6199560",
-    "Generacion": "00:00:03.3497580"
+    "TokensSalida": 151,
+    "Carga": "00:00:07.6697529",
+    "EvaluacionEntrada": "00:00:03.6948120",
+    "Generacion": "00:00:08.7203730"
   },
   "Etapas": [
     {
@@ -1827,8 +1827,8 @@
       "Nombre": "Recuperar",
       "Estado": 2,
       "Entrada": "\u00AB\u00BFC\u00F3mo hago si quiero que me devuelvan la se\u00F1a?\u00BB \u00B7 Hibrida \u00B7 estructural \u00B7 50 candidatos por lista",
-      "Salida": "20 resultados \u00B7 embedding 83 ms \u00B7 SQL 18 ms",
-      "Duracion": "00:00:00.1004480"
+      "Salida": "20 resultados \u00B7 embedding 2338 ms \u00B7 SQL 34 ms",
+      "Duracion": "00:00:02.3719483"
     },
     {
       "Nombre": "Rerankear",
@@ -1841,8 +1841,8 @@
       "Nombre": "Generar",
       "Estado": 2,
       "Entrada": "5 fragmentos \u00B7 ~921 tokens estimados \u00B7 qwen3.5:9b",
-      "Salida": "992 tokens de entrada \u00B7 73 de salida \u00B7 evaluaci\u00F3n 2620 ms \u00B7 generaci\u00F3n 3,3 s",
-      "Duracion": "00:00:06.1519228"
+      "Salida": "992 tokens de entrada \u00B7 151 de salida \u00B7 evaluaci\u00F3n 3695 ms \u00B7 generaci\u00F3n 8,7 s \u00B7 carga del modelo 7,7 s",
+      "Duracion": "00:00:20.1019882"
     }
   ]
 }
