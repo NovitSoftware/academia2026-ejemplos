@@ -1,0 +1,6 @@
+bin
+obj
+grabaciones
+datos
+README.md
+docker-compose*.yml

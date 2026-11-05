@@ -1,0 +1,34 @@
+name: mesaya-memoria-dotnet
+
+services:
+  # Modelos locales. La primera vez la app descarga los que falten (unos 8 GB).
+  # El volumen se comparte con las otras demos de la clase: se descargan una sola vez.
+  ollama:
+    image: ollama/ollama:0.33.2
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      OLLAMA_MAX_LOADED_MODELS: "2"   # el de respuestas y el de embeddings, sin recargar entre llamadas
+
+  app:
+    build: .
+    user: "${UID:-1000}:${GID:-1000}"
+    ports:
+      - "5400:5400"
+    environment:
+      # Primero el Ollama de la máquina (si está corriendo, con sus modelos y su GPU); si no responde, el del contenedor.
+      OLLAMA_URL: http://host.docker.internal:11434,http://ollama:11434
+      MODELO: ${MODELO:-qwen3.5:9b}
+      EMBEDDINGS: bge-m3
+    volumes:
+      - ./grabaciones:/srv/grabaciones   # modo guion: viaja con el repositorio
+      - datos:/srv/datos                 # base SQLite de la memoria
+    depends_on:
+      - ollama
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # en Linux, para llegar a la máquina
+
+volumes:
+  ollama:
+    name: academia-ollama
+  datos:
