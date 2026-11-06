@@ -4,37 +4,32 @@ Demo de la presentación **Unidad 4 · Memoria del agente**. Es el asistente de 
 
 > Idea para llevar: *recordar es decidir*. Qué guardar, con qué metadatos, cuándo olvidar y de quién no aceptar recuerdos.
 
-Está hecha en C# con .NET 10 (ASP.NET Core minimal API) y una interfaz web sin frameworks. Es un port de la versión original en Python: mismos escenarios, mismos prompts y la misma API. Todo corre en Docker; los modelos, en Ollama.
+Está hecha en C# con .NET 10 (ASP.NET Core minimal API) y una interfaz web sin frameworks. Es un port de la versión original en Python: mismos escenarios, mismos prompts y la misma API. Corre directo en tu máquina y usa el Ollama local.
 
 ## Qué necesitás
 
 | Para qué | Requisito |
 |---|---|
-| Correr la demo | Docker con Compose |
-| Modelos | Ollama: el del contenedor (por defecto) o el de tu máquina si ya lo tenés |
+| Correr la demo | SDK de .NET 10 |
+| Modelos | Ollama corriendo en tu máquina (`localhost:11434`) |
 | Agente, extractor de memoria y resúmenes | `qwen3.5:9b` (u otro modelo de Ollama, se elige arriba a la derecha) |
 | Embeddings de los recuerdos | `bge-m3` |
 
-La primera vez la app descarga los modelos que falten. El volumen de modelos (`academia-ollama`) se comparte con las otras demos de la clase.
+Si falta algún modelo, la app lo descarga en tu Ollama al iniciar. Para bajarlos antes: `ollama pull qwen3.5:9b` y `ollama pull bge-m3`.
 
 ## Iniciar
 
 Desde esta carpeta:
 
 ```bash
-docker compose up -d --build
+./iniciar.sh
 ```
 
-Abrí [http://localhost:5400](http://localhost:5400).
+Abrí [http://localhost:5400](http://localhost:5400). `Ctrl+C` la detiene.
 
-- Si hay un Ollama corriendo en tu máquina (`localhost:11434`), la app lo usa, con todos sus modelos. Conviene si ya los tenés descargados o una GPU que Ollama aprovecha.
-- Si no, usa el Ollama del contenedor. En CPU funciona, pero cada respuesta tarda bastante más.
-- La elección se hace al iniciar: si prendés Ollama después, reiniciá la app con `docker compose restart app`.
-- `docker compose down` apaga todo.
-- Otro modelo: `MODELO=gemma4:e2b docker compose up -d --build`.
-- Sin Docker, con el SDK de .NET 10 y Ollama en `localhost:11434`: `dotnet run --urls http://localhost:5400`.
-
-En Linux, para que el contenedor llegue al Ollama de la máquina, Ollama tiene que escuchar en todas las interfaces (`OLLAMA_HOST=0.0.0.0 ollama serve`). En Windows y macOS con Docker Desktop funciona tal cual.
+- El script verifica que Ollama responda y avisa si falta algún modelo.
+- Otro modelo: `MODELO=gemma4:e2b ./iniciar.sh`.
+- Otro Ollama: `OLLAMA_URL=http://otra-maquina:11434 ./iniciar.sh`. Otro puerto: `PUERTO=5500 ./iniciar.sh`.
 
 ## La pantalla
 
@@ -104,14 +99,13 @@ static/          interfaz (HTML, CSS y JS sin build) con la guía visual de Novi
 - **Olvido a pedido por similitud.** Se olvidan los recuerdos con similitud ≥ 0,55 respecto de lo que el cliente pidió olvidar. Un pedido vago puede borrar de más o de menos: buen tema para discutir.
 - **Escritura en segundo plano.** La respuesta del turno se serializa antes de arrancar la escritura de memoria, como `asyncio.create_task` en Python: la respuesta llega antes que el recuerdo.
 - **La misma API que en Python.** Como la interfaz es la original, las respuestas tienen exactamente las mismas claves. Por eso los datos se arman con `Dict` (un `Dictionary<string, object?>`) en lugar de clases.
-- **Sesiones en memoria del proceso.** La memoria de largo plazo persiste en SQLite (volumen `datos`); las sesiones y el estado se pierden al reiniciar el contenedor, como cualquier memoria de corto plazo.
+- **Sesiones en memoria del proceso.** La memoria de largo plazo persiste en SQLite (carpeta `datos/`); las sesiones y el estado se pierden al reiniciar la app, como cualquier memoria de corto plazo.
 
 ## Problemas frecuentes
 
 | Síntoma | Causa y solución |
 |---|---|
-| «Sin Ollama» o «Preparando modelos…» | Ollama no responde o está descargando. `docker compose logs ollama` |
+| «Sin Ollama» o «Preparando modelos…» | Ollama no responde en `localhost:11434` (inicialo con `ollama serve`) o está descargando un modelo |
 | El recuerdo tarda en aparecer | Con escritura en segundo plano es lo esperado: la respuesta llega primero y el recuerdo unos segundos después |
 | Un escenario da otro resultado | El modelo no es del todo determinista. Corré la variante de nuevo, o grabala antes de clase y usá el modo guion |
 | «No hay una grabación de esta llamada» | En modo guion hay que repetir exactamente los mismos pasos, desde el botón de la variante |
-| La app no usa el Ollama local | Se elige al iniciar: si Ollama arrancó después, `docker compose restart app`. En Linux, Ollama tiene que escuchar con `OLLAMA_HOST=0.0.0.0` |

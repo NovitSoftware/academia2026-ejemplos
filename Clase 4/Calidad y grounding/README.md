@@ -4,37 +4,32 @@ Demo de la presentación **Unidad 3 · Calidad, grounding y criterios de uso**. 
 
 > Idea para llevar: *medí antes de confiar*. Una respuesta fiel a un documento viejo sigue estando mal.
 
-Está hecha en C# con .NET 10 (ASP.NET Core minimal API) y una interfaz web sin frameworks. Es un port de la versión original en Python: mismos escenarios, mismos prompts y la misma API. Todo corre en Docker; los modelos, en Ollama.
+Está hecha en C# con .NET 10 (ASP.NET Core minimal API) y una interfaz web sin frameworks. Es un port de la versión original en Python: mismos escenarios, mismos prompts y la misma API. Corre directo en tu máquina y usa el Ollama local.
 
 ## Qué necesitás
 
 | Para qué | Requisito |
 |---|---|
-| Correr la demo | Docker con Compose |
-| Modelos | Ollama: el del contenedor (por defecto) o el de tu máquina si ya lo tenés |
+| Correr la demo | SDK de .NET 10 |
+| Modelos | Ollama corriendo en tu máquina (`localhost:11434`) |
 | Respuestas, reranking y verificación | `qwen3.5:9b` (u otro modelo de Ollama, se elige arriba a la derecha) |
 | Embeddings | `bge-m3` |
 
-La primera vez la app descarga los modelos que falten, unos 8 GB. El indicador de arriba a la derecha muestra el avance. El volumen de modelos (`academia-ollama`) se comparte con las otras demos de la clase: se descargan una sola vez.
+Si falta algún modelo, la app lo descarga en tu Ollama al iniciar (unos 8 GB en total). El indicador de arriba a la derecha muestra el avance. Para bajarlos antes: `ollama pull qwen3.5:9b` y `ollama pull bge-m3`.
 
 ## Iniciar
 
 Desde esta carpeta:
 
 ```bash
-docker compose up -d --build
+./iniciar.sh
 ```
 
-Abrí [http://localhost:5300](http://localhost:5300).
+Abrí [http://localhost:5300](http://localhost:5300). `Ctrl+C` la detiene.
 
-- Si hay un Ollama corriendo en tu máquina (`localhost:11434`), la app lo usa, con todos sus modelos. Conviene si ya los tenés descargados o una GPU que Ollama aprovecha.
-- Si no, usa el Ollama del contenedor. En CPU funciona, pero cada respuesta tarda bastante más.
-- La elección se hace al iniciar: si prendés Ollama después, reiniciá la app con `docker compose restart app`.
-- `docker compose down` apaga todo.
-- Otro modelo: `MODELO=gemma4:e2b docker compose up -d --build`.
-- Sin Docker, con el SDK de .NET 10 y Ollama en `localhost:11434`: `dotnet run --urls http://localhost:5300`.
-
-En Linux, para que el contenedor llegue al Ollama de la máquina, Ollama tiene que escuchar en todas las interfaces (`OLLAMA_HOST=0.0.0.0 ollama serve`). En Windows y macOS con Docker Desktop funciona tal cual.
+- El script verifica que Ollama responda y avisa si falta algún modelo.
+- Otro modelo: `MODELO=gemma4:e2b ./iniciar.sh`.
+- Otro Ollama: `OLLAMA_URL=http://otra-maquina:11434 ./iniciar.sh`. Otro puerto: `PUERTO=5400 ./iniciar.sh`.
 
 ## La pantalla
 
@@ -117,8 +112,7 @@ evaluacion/       preguntas.json: las 15 de la demo de RAG y 7 nuevas (fuera del
 
 | Síntoma | Causa y solución |
 |---|---|
-| «Sin Ollama» arriba a la derecha | El contenedor de Ollama no levantó o el Ollama local no responde. `docker compose logs ollama` |
+| «Sin Ollama» arriba a la derecha | Ollama no responde en `localhost:11434`. Inicialo con `ollama serve` (o `sudo systemctl start ollama`) |
 | Se queda en «Descargando…» | La primera descarga es grande. Si falla, la app reintenta sola; si no, revisá la conexión |
-| Cada respuesta tarda más de 30 s | Ollama corre en CPU. Usá el Ollama de tu máquina con GPU o un modelo más chico |
+| Cada respuesta tarda más de 30 s | Ollama corre en CPU. Probá un modelo más chico: `MODELO=gemma4:e2b ./iniciar.sh` |
 | «No hay una grabación de esta llamada» | En modo guion, la pregunta y los controles tienen que coincidir con una corrida grabada |
-| La app no usa el Ollama local | Se elige al iniciar: si Ollama arrancó después, `docker compose restart app`. En Linux, Ollama tiene que escuchar con `OLLAMA_HOST=0.0.0.0` |

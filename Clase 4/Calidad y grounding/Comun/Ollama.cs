@@ -25,7 +25,7 @@ public sealed class Ollama
 {
     public static readonly Ollama Instancia = new();
 
-    public string Url { get; private set; }
+    public string Url { get; }
     public string Modelo { get; set; }
     public string Embeddings { get; set; }
     public bool ModoGuion { get; set; }
@@ -34,53 +34,26 @@ public sealed class Ollama
     public Dictionary<string, Dict> Descargas { get; } = [];  // modelo -> {estado, completado, total}
     public string? Error { get; private set; }
 
-    HttpClient cliente;
+    readonly HttpClient cliente;
     readonly string grabaciones;
-    readonly string[] candidatos;
 
     Ollama()
     {
-        // OLLAMA_URL puede traer varias direcciones separadas por coma, en orden de preferencia:
-        // al iniciar se usa la primera que responde. docker-compose pone primero el Ollama de la
-        // máquina y después el del contenedor; sin Docker se usa el de la máquina.
-        candidatos = (Environment.GetEnvironmentVariable("OLLAMA_URL") ?? "http://localhost:11434")
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(u => u.TrimEnd('/')).ToArray();
+        // El Ollama de la máquina. OLLAMA_URL permite apuntar a otro.
+        Url = (Environment.GetEnvironmentVariable("OLLAMA_URL") ?? "http://localhost:11434").TrimEnd('/');
         Modelo = Environment.GetEnvironmentVariable("MODELO") ?? "qwen3.5:9b";
         Embeddings = Environment.GetEnvironmentVariable("EMBEDDINGS") ?? "bge-m3";
         grabaciones = Path.Combine(Environment.GetEnvironmentVariable("GRABACIONES") ?? "grabaciones", "llm");
         Directory.CreateDirectory(grabaciones);
-        Url = candidatos[0];
-        cliente = Cliente(Url);
-    }
-
-    static HttpClient Cliente(string url)
-    {
         var handler = new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(3) };
         // Sin timeout global: cada llamada pone el suyo (la descarga de modelos puede tardar mucho).
-        return new HttpClient(handler) { BaseAddress = new Uri(url + "/"), Timeout = Timeout.InfiniteTimeSpan };
+        cliente = new HttpClient(handler) { BaseAddress = new Uri(Url + "/"), Timeout = Timeout.InfiniteTimeSpan };
     }
 
-    /// <summary>Prueba las direcciones en orden y se queda con la primera que responde.</summary>
     async Task<bool> Conectar()
     {
-        foreach (var url in candidatos)
-        {
-            var anterior = (Url, cliente);
-            (Url, cliente) = (url, url == Url ? cliente : Cliente(url));
-            try
-            {
-                await Listar();
-                if (!ReferenceEquals(anterior.cliente, cliente)) anterior.cliente.Dispose();
-                return true;
-            }
-            catch
-            {
-                if (!ReferenceEquals(anterior.cliente, cliente)) cliente.Dispose();
-                (Url, cliente) = anterior;
-            }
-        }
-        return false;
+        try { await Listar(); return true; }
+        catch { return false; }
     }
 
     static CancellationToken Limite(int segundos = 300) => new CancellationTokenSource(TimeSpan.FromSeconds(segundos)).Token;
@@ -110,7 +83,7 @@ public sealed class Ollama
         while (!await Conectar())  // Ollama todavía no levantó
         {
             Conectado = false;
-            Error = $"No se puede conectar a Ollama en {string.Join(" ni en ", candidatos)}";
+            Error = $"No se puede conectar a Ollama en {Url}";
             await Task.Delay(2000);
         }
         Error = null;
