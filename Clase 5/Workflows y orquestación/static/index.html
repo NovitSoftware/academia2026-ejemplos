@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MesaYa · Workflows y orquestación</title>
+<link rel="icon" href="/static/isotipo-blanco.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/novit.css">
+<link rel="stylesheet" href="/static/orquestacion.css">
+</head>
+<body>
+<header class="top">
+  <img class="logo" src="/static/logo-blanco.png" alt="Novit">
+  <div class="sep"></div>
+  <div class="titulo"><b>MesaYa · Workflows y orquestación</b><span>Unidad 1 · Workflow vs agente, patrones de orquestación y costos de la autonomía</span></div>
+  <img class="wm" src="/static/isotipo-blanco.png" alt="">
+  <div class="der">
+    <span class="pill" id="estado"><span class="dot carga"></span><span id="estado-txt">Conectando…</span>
+      <select id="modelo" title="Modelo" hidden></select></span>
+    <label class="tog" title="Reproduce las respuestas grabadas sin llamar a Ollama"><span>Modo guion</span><input type="checkbox" id="guion"><span class="sw"></span></label>
+  </div>
+</header>
+
+<main class="app">
+  <aside class="col izq">
+    <div class="rotulo">Patrón</div>
+    <div id="patrones"></div>
+
+    <div class="rotulo">Escenarios</div>
+    <div id="escenarios"></div>
+
+    <div class="rotulo">Controles</div>
+    <label class="tog" title="Las llamadas independientes corren al mismo tiempo"><span>Llamadas en paralelo</span><input type="checkbox" data-k="paralelo"><span class="sw"></span></label>
+    <div class="ctl"><div class="lab">Máximo de vueltas del evaluador <b id="v-max_vueltas"></b></div><input type="range" min="1" max="5" data-k="max_vueltas"></div>
+    <div class="ctl"><div class="lab">Máximo de pasos del agente <b id="v-max_pasos"></b></div><input type="range" min="2" max="15" data-k="max_pasos"></div>
+    <button class="btn sec mini" id="limpiar" style="margin-top:10px"><svg class="ic"><use href="/static/iconos.svg#i-trash"/></svg>Limpiar chat y comparación</button>
+  </aside>
+
+  <section class="col centro">
+    <div class="chat-cab">
+      <span class="icb" id="cab-icono"></span>
+      <div class="cab-txt"><h3 id="cab-nombre">—</h3><span id="cab-resumen"></span></div>
+    </div>
+    <div class="mensajes" id="mensajes"></div>
+    <div class="entrada">
+      <textarea id="mensaje" placeholder="Escribí un pedido para MesaYa…  (Enter para enviar)"></textarea>
+      <button class="btn" id="enviar"><svg class="ic"><use href="/static/iconos.svg#i-ask"/></svg>Enviar</button>
+    </div>
+  </section>
+
+  <aside class="col der">
+    <nav class="tabs" id="tabs">
+      <button data-t="recorrido" class="on"><svg class="ic"><use href="/static/iconos.svg#i-steps"/></svg>Recorrido</button>
+      <button data-t="llamadas"><svg class="ic"><use href="/static/iconos.svg#i-chat"/></svg>Llamadas al LLM</button>
+      <button data-t="comparar"><svg class="ic"><use href="/static/iconos.svg#i-trend"/></svg>Comparar</button>
+    </nav>
+    <div class="panel" id="panel"></div>
+  </aside>
+</main>
+<script src="/static/orquestacion.js"></script>
+</body>
+</html>

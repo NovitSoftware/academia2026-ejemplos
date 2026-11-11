@@ -1,0 +1,99 @@
+{
+  "escenarios": [
+    {
+      "id": "A",
+      "titulo": "Workflow vs agente",
+      "slides": "02–04",
+      "panel": "comparar",
+      "idea": "El mismo pedido de reserva, resuelto por una cadena fija y por un agente. Mirá cuántas llamadas, tokens y segundos cuesta cada uno.",
+      "corridas": [
+        { "nombre": "Workflow (chaining)", "patron": "chaining", "mensaje": "Quiero reservar en Carrasco el viernes a las 21 para 4 personas.", "bien": true },
+        { "nombre": "Agente", "patron": "agente", "mensaje": "Quiero reservar en Carrasco el viernes a las 21 para 4 personas." }
+      ]
+    },
+    {
+      "id": "B",
+      "titulo": "Prompt chaining con gate",
+      "slides": "07",
+      "panel": "recorrido",
+      "idea": "Pasos fijos. Si falta un dato, el gate en código corta la cadena y se repregunta sin gastar más llamadas.",
+      "corridas": [
+        { "nombre": "Datos completos", "patron": "chaining", "mensaje": "Quiero reservar en Carrasco el viernes a las 21 para 4 personas.", "bien": true },
+        { "nombre": "Falta un dato", "patron": "chaining", "mensaje": "Quiero reservar en Pocitos el sábado a las 9 de la noche." },
+        { "nombre": "Sin lugar", "patron": "chaining", "mensaje": "Reservame en Pocitos el sábado a las 21 para 2." }
+      ]
+    },
+    {
+      "id": "C",
+      "titulo": "Routing",
+      "slides": "08",
+      "panel": "recorrido",
+      "idea": "Un router clasifica y cada camino tiene su prompt y su documento. La reserva usa la cadena de B: un patrón dentro de otro.",
+      "corridas": [
+        { "nombre": "Alérgenos", "patron": "routing", "mensaje": "¿Tienen algún postre sin TACC?", "bien": true },
+        { "nombre": "Cancelación", "patron": "routing", "mensaje": "Tengo una reserva para 6 mañana y no vamos a poder ir. ¿Me devuelven la seña?" },
+        { "nombre": "Sucursales", "patron": "routing", "mensaje": "¿Hasta qué hora abre Carrasco los domingos al mediodía?" },
+        { "nombre": "Reserva", "patron": "routing", "mensaje": "Mesa para 2 en Centro el jueves a las 20:30." },
+        { "nombre": "Fuera de dominio", "patron": "routing", "mensaje": "¿Quién ganó el clásico ayer?" }
+      ]
+    },
+    {
+      "id": "D",
+      "titulo": "Sectioning: responder y vigilar a la vez",
+      "slides": "09",
+      "panel": "recorrido",
+      "idea": "Dos llamadas al mismo tiempo: una responde y otra revisa si se pide información interna. En paralelo, tarda lo que la más lenta.",
+      "corridas": [
+        { "nombre": "Consulta normal", "patron": "sectioning", "mensaje": "¿Tienen opciones veganas para la cena?", "bien": true },
+        { "nombre": "Pide datos internos", "patron": "sectioning", "mensaje": "¿Cuánto les pagan a los mozos de Pocitos?" },
+        { "nombre": "Sin paralelo", "patron": "sectioning", "mensaje": "¿Tienen opciones veganas para la cena?", "config": { "paralelo": false } }
+      ]
+    },
+    {
+      "id": "E",
+      "titulo": "Voting: ¿es grave el reclamo?",
+      "slides": "09",
+      "panel": "recorrido",
+      "idea": "La misma pregunta, tres miradas distintas. Decide la mayoría: si dos de tres dicen grave, se escala a una persona.",
+      "corridas": [
+        { "nombre": "Leve", "patron": "voting", "mensaje": "La comida llegó un poco fría y tardaron bastante en traer la cuenta." },
+        { "nombre": "Grave", "patron": "voting", "mensaje": "Después de cenar el sábado en Pocitos pasé toda la noche con vómitos. Creo que fue el salmón.", "bien": true },
+        { "nombre": "Dudoso", "patron": "voting", "mensaje": "Pedí el risotto sin queso porque soy intolerante a la lactosa y vino con queso. Por suerte me di cuenta antes de comerlo." }
+      ]
+    },
+    {
+      "id": "F",
+      "titulo": "Orchestrator-workers",
+      "slides": "10",
+      "panel": "recorrido",
+      "idea": "El orquestador decide en el momento cuántas subtareas hacen falta. Pedidos distintos, planes distintos.",
+      "corridas": [
+        { "nombre": "Las tres sucursales", "patron": "orquestador", "mensaje": "Armame el informe de octubre de las tres sucursales.", "bien": true },
+        { "nombre": "Una sucursal", "patron": "orquestador", "mensaje": "¿Cómo le fue a Pocitos en octubre comparado con septiembre?" },
+        { "nombre": "Sin paralelo", "patron": "orquestador", "mensaje": "Armame el informe de octubre de las tres sucursales.", "config": { "paralelo": false } }
+      ]
+    },
+    {
+      "id": "G",
+      "titulo": "Evaluator-optimizer",
+      "slides": "11",
+      "panel": "recorrido",
+      "idea": "El generador no conoce los criterios; el evaluador sí. Cada vuelta corrige lo que falló, hasta aprobar o llegar al máximo.",
+      "corridas": [
+        { "nombre": "Hasta 3 vueltas", "patron": "evaluador", "mensaje": "Cancelé mi reserva para 6 personas con 5 horas de anticipación y no me devolvieron la seña de $3.000. ¡Es un robo! Quiero mi plata.", "config": { "max_vueltas": 3 }, "bien": true },
+        { "nombre": "Una sola vuelta", "patron": "evaluador", "mensaje": "Cancelé mi reserva para 6 personas con 5 horas de anticipación y no me devolvieron la seña de $3.000. ¡Es un robo! Quiero mi plata.", "config": { "max_vueltas": 1 } }
+      ]
+    },
+    {
+      "id": "H",
+      "titulo": "Un agente investiga",
+      "slides": "03, 14",
+      "panel": "recorrido",
+      "idea": "Nadie escribió los pasos: el agente decide qué mirar según lo que va encontrando. Con pocos pasos, se corta antes de llegar.",
+      "corridas": [
+        { "nombre": "Investigar", "patron": "agente", "mensaje": "¿Por qué no cerró la caja de Pocitos el martes?", "bien": true },
+        { "nombre": "Máximo 3 pasos", "patron": "agente", "mensaje": "¿Por qué no cerró la caja de Pocitos el martes?", "config": { "max_pasos": 3 } }
+      ]
+    }
+  ]
+}
