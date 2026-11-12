@@ -11,9 +11,9 @@ Está hecha en C# con .NET 10 (ASP.NET Core minimal API) y una interfaz web sin 
 | Para qué | Requisito |
 |---|---|
 | Correr la demo | SDK de .NET 10 |
-| Modelo | Ollama corriendo en tu máquina (`localhost:11434`) con `qwen3.5:9b` (u otro modelo, se elige arriba a la derecha) |
+| Modelo | Ollama corriendo en tu máquina (`localhost:11434`) con `qwen3.5:4b` (u otro modelo, se elige arriba a la derecha) |
 
-Si falta el modelo, la app lo descarga al iniciar. Para bajarlo antes: `ollama pull qwen3.5:9b`. Esta demo no usa embeddings.
+Si falta el modelo, la app lo descarga al iniciar. Para bajarlo antes: `ollama pull qwen3.5:4b`. Esta demo no usa embeddings.
 
 ## Iniciar
 
@@ -26,7 +26,7 @@ Desde esta carpeta:
 Abrí [http://localhost:5500](http://localhost:5500). `Ctrl+C` la detiene.
 
 - El script verifica que Ollama responda y avisa si falta el modelo.
-- Otro modelo: `MODELO=qwen3.5:4b ./iniciar.sh`. En una máquina sin GPU grande, el de 4b responde bastante más rápido.
+- Otro modelo: `MODELO=qwen3.5:9b ./iniciar.sh`. Es más preciso, pero en una GPU de 4 GB tarda el doble o más.
 - Otro Ollama: `OLLAMA_URL=http://otra-maquina:11434 ./iniciar.sh`. Otro puerto: `PUERTO=5600 ./iniciar.sh`.
 
 ## La pantalla
@@ -76,9 +76,9 @@ Abrí [http://localhost:5500](http://localhost:5500). `Ctrl+C` la detiene.
 
 Igual que en las demos de la Clase 4: cada llamada al modelo que termina bien se guarda en `grabaciones/`, y con **Modo guion** prendido se repite desde ahí sin llamar a Ollama. Sirve de plan B si el modelo tarda o falla en plena clase.
 
-La carpeta ya trae grabados los 20 botones de los escenarios A–H con `qwen3.5:9b`. Si vas a usar otro modelo, corré los escenarios una vez antes de la clase con ese modelo. Los prompts no dependen de la fecha, así que las grabaciones sirven cualquier día.
+La carpeta ya trae grabados los 23 botones de los escenarios A–H con `qwen3.5:4b`. Si vas a usar otro modelo, corré los escenarios una vez antes de la clase con ese modelo. Los prompts no dependen de la fecha, así que las grabaciones sirven cualquier día.
 
-En vivo, con `qwen3.5:9b` en una GPU de 4 GB, cada llamada tarda entre 10 y 60 segundos: una cadena o un router, menos de un minuto; el orquestador con cuatro workers y el evaluador, unos 4 minutos; el agente que investiga la caja, otros 4. Para esos escenarios, el modo guion es la opción más cómoda en clase.
+En vivo, con `qwen3.5:4b` en una GPU de 4 GB, cada llamada tarda entre 4 y 25 segundos: una cadena, un router o un voting, entre 5 y 25 segundos; el agente, alrededor de un minuto; el orquestador con cuatro workers, un minuto y medio; el evaluador con tres vueltas, unos dos minutos y medio. Para esos últimos, el modo guion es la opción más cómoda en clase. Con `qwen3.5:9b` todo tarda entre dos y tres veces más.
 
 ## Cómo está hecho
 

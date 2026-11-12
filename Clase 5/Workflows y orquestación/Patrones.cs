@@ -527,7 +527,10 @@ public static class Patrones
         "- finalizar(respuesta): cuando ya tenés la respuesta final para el usuario, en 2 a 4 oraciones.\n" +
         "No inventes datos: usá solo lo que devuelven las herramientas. El día va como día de la semana en minúscula y la hora como HH:MM.\n" +
         "Si te preguntan por qué pasó algo, encontrá la causa: describir el síntoma no alcanza. Seguí revisando hasta poder explicar " +
-        "qué la produjo y con qué datos lo comprobaste.\n\n" +
+        "qué la produjo y con qué datos lo comprobaste.\n" +
+        "Cómo se investiga una diferencia de caja en MesaYa: el cierre solo dice cuánto falta, no por qué. Revisá los tickets del medio de pago " +
+        "con diferencia, buscá los que tengan algo raro y cruzalos con otra fuente (por ejemplo, las transferencias). " +
+        "No finalices hasta saber qué tickets o pagos explican la diferencia.\n\n" +
         Datos.Ficha;
 
     static async Task<Dict> Agente(string mensaje, Dict config)

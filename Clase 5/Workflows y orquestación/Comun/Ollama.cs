@@ -41,7 +41,7 @@ public sealed class Ollama
     {
         // El Ollama de la máquina. OLLAMA_URL permite apuntar a otro.
         Url = (Environment.GetEnvironmentVariable("OLLAMA_URL") ?? "http://localhost:11434").TrimEnd('/');
-        Modelo = Environment.GetEnvironmentVariable("MODELO") ?? "qwen3.5:9b";
+        Modelo = Environment.GetEnvironmentVariable("MODELO") ?? "qwen3.5:4b";
         Embeddings = Environment.GetEnvironmentVariable("EMBEDDINGS") is { Length: > 0 } e ? e : null;
         grabaciones = Path.Combine(Environment.GetEnvironmentVariable("GRABACIONES") ?? "grabaciones", "llm");
         Directory.CreateDirectory(grabaciones);

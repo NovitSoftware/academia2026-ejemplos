@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Arranca la demo con el Ollama de esta máquina. Ctrl+C la detiene.
-#   ./iniciar.sh                       modelo por defecto (qwen3.5:9b)
-#   MODELO=qwen3.5:4b ./iniciar.sh     otro modelo (más rápido en máquinas chicas)
+#   ./iniciar.sh                       modelo por defecto (qwen3.5:4b)
+#   MODELO=qwen3.5:9b ./iniciar.sh     otro modelo (más preciso, pero más lento sin una GPU grande)
 #   OLLAMA_URL=http://otra:11434 ./iniciar.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
 PUERTO="${PUERTO:-5500}"
 export OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
-export MODELO="${MODELO:-qwen3.5:9b}"
+export MODELO="${MODELO:-qwen3.5:4b}"
 
 command -v dotnet >/dev/null || { echo "✘ Falta el SDK de .NET 10: https://dotnet.microsoft.com/download"; exit 1; }
 
