@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MesaYa · Routing y agentes de control</title>
+<link rel="icon" href="/static/isotipo-blanco.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/novit.css">
+<link rel="stylesheet" href="/static/control.css">
+</head>
+<body>
+<header class="top">
+  <img class="logo" src="/static/logo-blanco.png" alt="Novit">
+  <div class="sep"></div>
+  <div class="titulo"><b>MesaYa · Routing y agentes de control</b><span>Unidad 2 · Clasificación de intención, umbral, permisos, reviewer, validación, testing y ataques</span></div>
+  <img class="wm" src="/static/isotipo-blanco.png" alt="">
+  <div class="der">
+    <span class="pill" id="estado"><span class="dot carga"></span><span id="estado-txt">Conectando…</span>
+      <select id="modelo" title="Modelo" hidden></select></span>
+    <label class="tog" title="Reproduce las respuestas grabadas sin llamar a Ollama"><span>Modo guion</span><input type="checkbox" id="guion"><span class="sw"></span></label>
+  </div>
+</header>
+
+<main class="app">
+  <aside class="col izq">
+    <div class="rotulo">Canal</div>
+    <div class="canales" id="canales"></div>
+
+    <div class="rotulo">Router</div>
+    <div class="ctl"><div class="seg" id="metodos"></div><div class="nota-metodo" id="nota-metodo"></div></div>
+    <div class="ctl"><div class="lab">Umbral de confianza <b id="v-umbral"></b></div><input type="range" min="0.3" max="0.95" step="0.05" data-k="umbral"></div>
+
+    <div class="rotulo">Controles</div>
+    <label class="tog" title="El canal decide a qué rutas se puede llegar"><span>Permisos por canal</span><input type="checkbox" data-k="permisos"><span class="sw"></span></label>
+    <label class="tog" title="Revisa los reembolsos contra el sistema antes de ejecutarlos"><span>Reviewer de reembolsos</span><input type="checkbox" data-k="reviewer"><span class="sw"></span></label>
+    <label class="tog" title="Revisa si la respuesta del especialista está respaldada"><span>Juez de salida</span><input type="checkbox" data-k="juez"><span class="sw"></span></label>
+
+    <div class="rotulo">Escenarios</div>
+    <div id="escenarios"></div>
+    <button class="btn sec mini" id="limpiar" style="margin-top:10px"><svg class="ic"><use href="/static/iconos.svg#i-trash"/></svg>Limpiar el chat</button>
+  </aside>
+
+  <section class="col centro">
+    <div class="chat-cab">
+      <span class="icb" id="cab-icono"></span>
+      <div class="cab-txt"><h3 id="cab-nombre">—</h3><span id="cab-quien"></span></div>
+    </div>
+    <div class="mensajes" id="mensajes"></div>
+    <div class="entrada">
+      <textarea id="mensaje" placeholder="Escribile al asistente de MesaYa…  (Enter para enviar)"></textarea>
+      <button class="btn" id="enviar"><svg class="ic"><use href="/static/iconos.svg#i-ask"/></svg>Enviar</button>
+    </div>
+  </section>
+
+  <aside class="col der">
+    <nav class="tabs" id="tabs">
+      <button data-t="recorrido" class="on"><svg class="ic"><use href="/static/iconos.svg#i-steps"/></svg>Recorrido</button>
+      <button data-t="llamadas"><svg class="ic"><use href="/static/iconos.svg#i-chat"/></svg>Llamadas</button>
+      <button data-t="medir"><svg class="ic"><use href="/static/iconos.svg#i-table"/></svg>Medir el router</button>
+      <button data-t="pruebas"><svg class="ic"><use href="/static/iconos.svg#i-shield"/></svg>Testing y ataques</button>
+    </nav>
+    <div class="panel" id="panel"></div>
+  </aside>
+</main>
+<script src="/static/control.js"></script>
+</body>
+</html>
