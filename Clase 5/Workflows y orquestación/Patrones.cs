@@ -518,6 +518,7 @@ public static class Patrones
 
     const string SistemaAgente =
         "Sos un agente de MesaYa que resuelve pedidos usando herramientas. En cada paso elegís UNA acción y completás solo los campos que esa acción usa.\n" +
+        "En \"pensamiento\" escribí una sola oración corta, de hasta 25 palabras, con el motivo de la acción.\n" +
         "Herramientas:\n" +
         "- consultar_disponibilidad(sucursal, dia, hora, personas)\n" +
         "- crear_reserva(sucursal, dia, hora, personas): solo después de confirmar que hay lugar.\n" +
