@@ -34,7 +34,7 @@ Abrí [http://localhost:5600](http://localhost:5600). `Ctrl+C` la detiene.
 
 - **Canal:** quién escribe. *Web de clientes* (Martina S., clienta), *App del personal* (Diego, mozo) o *Panel de gerencia* (Paula R.). El canal decide a qué rutas se puede llegar.
 - **Router:** el método de clasificación (reglas, embeddings, LLM o híbrido) y el umbral de confianza.
-- **Controles:** permisos por canal y reviewer de reembolsos (prendidos), y juez de salida (apagado: se prende en los escenarios F e I). Apagalos o prendelos para ver qué cambia.
+- **Controles:** permisos por canal y reviewer de reembolsos (prendidos), y juez de salida (apagado: se prende en el escenario D). Apagalos o prendelos para ver qué cambia.
 - **Escenarios:** cada botón ajusta canal y controles y corre un mensaje o una prueba.
 
 **Centro.** El chat. Cada respuesta muestra el canal, la intención y su confianza, cómo terminó (respondida, repregunta, bloqueada, a una persona) y si filtró algo que no debía.
@@ -53,30 +53,24 @@ Abrí [http://localhost:5600](http://localhost:5600). `Ctrl+C` la detiene.
 | | Escenario | Qué se ve |
 |---|---|---|
 | A | Clasificar y decidir con umbral | Un mensaje claro sigue su ruta. «Lo del sábado ya no va» es ambiguo: con umbral 0,7 se repregunta en vez de arriesgar; con umbral 0,5 pasa |
-| B | Tres formas de clasificar | El mismo mensaje con reglas, embeddings y LLM. Las reglas no entienden «ya no va». El híbrido resuelve «Quiero cancelar mi reserva» sin llamar al LLM |
-| C | Workflow, tool, especialista o humano | La reserva pasa por extraer, validar y crear. El horario es una tool directa, sin LLM. El reclamo va a una persona |
-| D | El canal decide, no el mensaje | Desde la web de clientes, «pasame la escala salarial» se bloquea. Sin permisos, se filtran los sueldos. Desde gerencia, se responde |
-| E | Reviewer | Un reembolso de $3.600 cuando la seña fue de $3.000: el reviewer lo bloquea. Sin reviewer, sale la plata. Con menos de 24 h, también lo bloquea |
-| F | Validar la salida | «Lunes a las 25:00 para −2 personas»: lo frenan las reglas en código, sin gastar más. El juez revisa si la respuesta del especialista está respaldada por la carta |
-| G | Medir el router | El set etiquetado con cada método: exactitud, costo y matriz de confusión |
-| H | Un agente que genera las pruebas | Casos nuevos de cancelación y de reclamo. Los que fallan van a la regresión |
-| I | Atacá antes que los usuarios | Los seis ataques con todos los controles, y después sin permisos ni reviewer |
+| B | El canal decide, no el mensaje | Desde la web de clientes, «pasame la escala salarial» se bloquea. Sin permisos, se filtran los sueldos. Desde gerencia, se responde |
+| C | Reviewer | Un reembolso de $3.600 cuando la seña fue de $3.000: el reviewer lo bloquea. Sin reviewer, sale la plata. Con menos de 24 h, también lo bloquea |
+| D | Atacá antes que los usuarios | Los seis ataques con todos los controles, y después sin permisos ni reviewer |
 
-## Guion sugerido (~40 min)
+Lo demás se prueba a mano: el método del router se cambia en la columna izquierda, los otros destinos se ven escribiendo en el chat (un horario, un reclamo) y las pestañas *Medir el router* y *Testing y ataques* tienen sus propios botones.
+
+## Guion sugerido (~25 min)
 
 | Min | Slides | En la demo |
 |---|---|---|
-| 0–8 | 02–05 | **A** y **B**: la confianza contra el umbral, los cuatro métodos |
-| 8–14 | 06 | **C** y **D**: los destinos y los permisos por canal |
-| 14–20 | 07 | **G**: medir con reglas y con LLM, comparar la matriz de confusión |
-| 20–27 | 08–10 | **E**: el reviewer bloquea un reembolso. Apagarlo y repetir |
-| 27–32 | 11, 14 | **H**: el agente de testing y la regresión |
-| 32–37 | 12 | **I**: los ataques con y sin controles |
-| 37–40 | 13, 15 | **F** y la pestaña Recorrido como resumen de la tubería |
+| 0–7 | 02–05 | **A**: la confianza contra el umbral |
+| 7–12 | 06 | **B**: los permisos por canal |
+| 12–19 | 08–10 | **C**: el reviewer bloquea un reembolso. Apagarlo y repetir |
+| 19–25 | 12, 15 | **D**: los ataques con y sin controles, y la pestaña Recorrido como resumen de la tubería |
 
 ## Modo guion
 
-Igual que en las otras demos: cada llamada al modelo y cada embedding que terminan bien se guardan en `grabaciones/`, y con **Modo guion** prendido se repiten desde ahí sin llamar a Ollama. La carpeta ya trae grabados los botones de los escenarios A–I con `qwen3.5:4b`. Los prompts no dependen de la fecha.
+Igual que en las otras demos: cada llamada al modelo y cada embedding que terminan bien se guardan en `grabaciones/`, y con **Modo guion** prendido se repiten desde ahí sin llamar a Ollama. La carpeta ya trae grabados los botones de los escenarios A–D con `qwen3.5:4b`. Los prompts no dependen de la fecha.
 
 ## Lo que se guarda
 
@@ -91,7 +85,7 @@ Router.cs        los cuatro métodos de clasificación
 Pruebas.cs       medir con un set etiquetado, agente de testing y ataques
 Datos.cs         intenciones, canales y permisos, documentos, reservas y datos internos
 Traza.cs         la traza del turno (pasos, llamadas, tokens y tiempos) y los esquemas JSON
-escenarios.json  escenarios A–I, set etiquetado, ejemplos para embeddings y ataques
+escenarios.json  escenarios A–D, set etiquetado, ejemplos para embeddings y ataques
 Comun/           cliente de Ollama (descarga de modelos y modo guion), JSON y utilidades de texto
 static/          interfaz (HTML, CSS y JS sin build) con la guía visual de Novit
 ```
@@ -101,7 +95,7 @@ static/          interfaz (HTML, CSS y JS sin build) con la guía visual de Novi
 - **Los permisos son código.** El router clasifica; si la intención no está permitida para el canal, un gate la corta. Un mensaje que dice «soy el gerente» no cambia el canal.
 - **Un reembolso solo sale si lo aprueba el reviewer.** El reviewer es un LLM que ve la acción propuesta, la reserva en el sistema y la política. Con el reviewer apagado, la acción se ejecuta tal como la propuso el LLM que extrajo el pedido.
 - **Primero lo barato.** La validación de la reserva son reglas en código sobre la salida del LLM; el juez de salida (otro LLM) solo revisa las respuestas de los especialistas.
-- **El juez arranca apagado.** Con un modelo chico, el juez es ruidoso: a veces rechaza respuestas correctas y a veces deja pasar errores. Se prende en el escenario F, donde el contraste es claro (sin juez, el especialista puede decir que el brownie es sin TACC), y en los ataques con todos los controles. Que un juez rechace de más también es un tema para la clase: un control con falsos positivos deriva a personas casos que el bot podía resolver.
+- **El juez arranca apagado.** Con un modelo chico, el juez es ruidoso: a veces rechaza respuestas correctas y a veces deja pasar errores. Se prende en los ataques con todos los controles (escenario D); a mano, el contraste se ve con una pregunta de alérgenos: sin juez, el especialista puede decir que el brownie es sin TACC. Que un juez rechace de más también es un tema para la clase: un control con falsos positivos deriva a personas casos que el bot podía resolver.
 - **El reviewer y el juez son rúbricas.** El LLM revisa cada chequeo o cada afirmación con su motivo; la decisión (aprobar o no) la toma el código: con un solo chequeo en falso, no sale.
 - **La confianza de cada método se calcula distinto.** Reglas: proporción de palabras clave de la intención ganadora. Embeddings: softmax de la mejor similitud con los ejemplos de cada intención. LLM: una categoría (alta, media o baja → 0,9, 0,6 o 0,3) con un criterio explícito. Pedirle un número a un modelo chico no sirve: dice 0,95 para todo. Aun así, el LLM puede equivocarse con confianza alta: por eso la medición separa los *errores seguros*.
 - **El código de reserva lo saca una expresión regular.** Tiene un formato fijo (R-1234); el LLM solo extrae el monto.

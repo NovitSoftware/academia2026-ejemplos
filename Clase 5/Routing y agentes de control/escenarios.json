@@ -27,70 +27,6 @@
     },
     {
       "id": "B",
-      "titulo": "Tres formas de clasificar",
-      "slides": "04",
-      "panel": "recorrido",
-      "idea": "El mismo mensaje con reglas, embeddings, LLM e híbrido. Las reglas no entienden «ya no va»; el híbrido solo llama al LLM cuando las reglas no alcanzan.",
-      "corridas": [
-        {
-          "nombre": "Reglas",
-          "mensaje": "Lo del sábado ya no va, se nos complicó.",
-          "config": {
-            "metodo": "reglas"
-          }
-        },
-        {
-          "nombre": "Embeddings",
-          "mensaje": "Lo del sábado ya no va, se nos complicó.",
-          "config": {
-            "metodo": "embeddings"
-          }
-        },
-        {
-          "nombre": "LLM",
-          "mensaje": "Lo del sábado ya no va, se nos complicó.",
-          "config": {
-            "metodo": "llm"
-          }
-        },
-        {
-          "nombre": "Híbrido, mensaje obvio",
-          "mensaje": "Quiero cancelar mi reserva.",
-          "config": {
-            "metodo": "hibrido"
-          },
-          "bien": true
-        }
-      ]
-    },
-    {
-      "id": "C",
-      "titulo": "Workflow, tool, especialista o humano",
-      "slides": "06",
-      "panel": "recorrido",
-      "idea": "Cada intención tiene su destino. Una consulta de horario no necesita un LLM; un reclamo no lo resuelve el bot.",
-      "corridas": [
-        {
-          "nombre": "Reserva → workflow",
-          "mensaje": "Mesa para 4 en Carrasco el viernes a las 21.",
-          "bien": true
-        },
-        {
-          "nombre": "Horario → tool directa",
-          "mensaje": "¿A qué hora abre Pocitos el domingo?"
-        },
-        {
-          "nombre": "Alérgenos → especialista",
-          "mensaje": "¿El brownie es apto para celíacos?"
-        },
-        {
-          "nombre": "Reclamo → humano",
-          "mensaje": "Anoche en Centro la comida llegó fría y nadie nos atendió."
-        }
-      ]
-    },
-    {
-      "id": "D",
       "titulo": "El canal decide, no el mensaje",
       "slides": "06, 12",
       "panel": "recorrido",
@@ -118,7 +54,7 @@
       ]
     },
     {
-      "id": "E",
+      "id": "C",
       "titulo": "Reviewer: revisar antes de ejecutar",
       "slides": "10",
       "panel": "recorrido",
@@ -147,97 +83,7 @@
       ]
     },
     {
-      "id": "F",
-      "titulo": "Validar la salida",
-      "slides": "13",
-      "panel": "recorrido",
-      "idea": "Primero lo barato: reglas en código sobre lo que extrajo el LLM. Después lo caro: un juez que revisa si la respuesta del especialista está respaldada por la carta. Sin juez, sale lo que diga el especialista.",
-      "corridas": [
-        {
-          "nombre": "Datos imposibles",
-          "mensaje": "Reservá en Pocitos el lunes a las 25:00 para -2 personas.",
-          "bien": true
-        },
-        {
-          "nombre": "Juez de salida",
-          "mensaje": "¿Qué postres sin TACC tienen? ¿Cuál me recomendás si además soy diabético?",
-          "config": {
-            "juez": true
-          }
-        },
-        {
-          "nombre": "Sin juez",
-          "mensaje": "¿Qué postres sin TACC tienen? ¿Cuál me recomendás si además soy diabético?",
-          "config": {
-            "juez": false
-          }
-        }
-      ]
-    },
-    {
-      "id": "G",
-      "titulo": "Medir el router",
-      "slides": "04, 07",
-      "panel": "medir",
-      "idea": "27 mensajes etiquetados, 3 por intención. Cada método deja su exactitud, su matriz de confusión y su costo.",
-      "corridas": [
-        {
-          "nombre": "Reglas",
-          "accion": "medir",
-          "config": {
-            "metodo": "reglas"
-          }
-        },
-        {
-          "nombre": "Embeddings",
-          "accion": "medir",
-          "config": {
-            "metodo": "embeddings"
-          }
-        },
-        {
-          "nombre": "LLM",
-          "accion": "medir",
-          "config": {
-            "metodo": "llm"
-          },
-          "bien": true
-        },
-        {
-          "nombre": "Híbrido",
-          "accion": "medir",
-          "config": {
-            "metodo": "hibrido"
-          }
-        }
-      ]
-    },
-    {
-      "id": "H",
-      "titulo": "Un agente que genera las pruebas",
-      "slides": "11, 14",
-      "panel": "pruebas",
-      "idea": "Un LLM escribe mensajes nuevos para una intención y el router los clasifica. Los que fallan se guardan en el set de regresión.",
-      "corridas": [
-        {
-          "nombre": "Casos de cancelación",
-          "accion": "generar",
-          "intencion": "cancelacion",
-          "bien": true
-        },
-        {
-          "nombre": "Casos de reclamo",
-          "accion": "generar",
-          "intencion": "reclamo"
-        },
-        {
-          "nombre": "Correr la regresión",
-          "accion": "regresion"
-        }
-      ]
-    },
-    {
-      "id": "I",
+      "id": "D",
       "titulo": "Atacá antes que los usuarios",
       "slides": "12",
       "panel": "pruebas",
