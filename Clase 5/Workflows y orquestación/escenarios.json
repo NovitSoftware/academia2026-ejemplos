@@ -1,0 +1,50 @@
+{
+  "escenarios": [
+    {
+      "id": "A",
+      "titulo": "Workflow vs agente",
+      "slides": "02–04",
+      "panel": "comparar",
+      "idea": "El mismo pedido de reserva, resuelto por una cadena fija y por un agente. Mirá cuántas llamadas, tokens y segundos cuesta cada uno.",
+      "corridas": [
+        { "nombre": "Workflow (chaining)", "patron": "chaining", "mensaje": "Quiero reservar en Carrasco el viernes a las 21 para 4 personas.", "bien": true },
+        { "nombre": "Agente", "patron": "agente", "mensaje": "Quiero reservar en Carrasco el viernes a las 21 para 4 personas." }
+      ]
+    },
+    {
+      "id": "B",
+      "titulo": "Prompt chaining con gate",
+      "slides": "07",
+      "panel": "recorrido",
+      "idea": "Pasos fijos. Si falta un dato, el gate en código corta la cadena y se repregunta sin gastar más llamadas.",
+      "corridas": [
+        { "nombre": "Datos completos", "patron": "chaining", "mensaje": "Quiero reservar en Carrasco el viernes a las 21 para 4 personas.", "bien": true },
+        { "nombre": "Falta un dato", "patron": "chaining", "mensaje": "Quiero reservar en Pocitos el sábado a las 9 de la noche." },
+        { "nombre": "Sin lugar", "patron": "chaining", "mensaje": "Reservame en Pocitos el sábado a las 21 para 2." }
+      ]
+    },
+    {
+      "id": "C",
+      "titulo": "Orchestrator-workers",
+      "slides": "10",
+      "panel": "recorrido",
+      "idea": "El orquestador decide en el momento cuántas subtareas hacen falta. Pedidos distintos, planes distintos.",
+      "corridas": [
+        { "nombre": "Las tres sucursales", "patron": "orquestador", "mensaje": "Armame el informe de octubre de las tres sucursales.", "bien": true },
+        { "nombre": "Una sucursal", "patron": "orquestador", "mensaje": "¿Cómo le fue a Pocitos en octubre comparado con septiembre?" },
+        { "nombre": "Sin paralelo", "patron": "orquestador", "mensaje": "Armame el informe de octubre de las tres sucursales.", "config": { "paralelo": false } }
+      ]
+    },
+    {
+      "id": "D",
+      "titulo": "Un agente investiga",
+      "slides": "03, 14",
+      "panel": "recorrido",
+      "idea": "Nadie escribió los pasos: el agente decide qué mirar según lo que va encontrando. Con pocos pasos, se corta antes de llegar.",
+      "corridas": [
+        { "nombre": "Investigar", "patron": "agente", "mensaje": "¿Por qué no cerró la caja de Pocitos el martes?", "bien": true },
+        { "nombre": "Máximo 3 pasos", "patron": "agente", "mensaje": "¿Por qué no cerró la caja de Pocitos el martes?", "config": { "max_pasos": 3 } }
+      ]
+    }
+  ]
+}
