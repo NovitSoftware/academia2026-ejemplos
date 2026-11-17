@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MesaYa · Proveedores y modelos</title>
+<link rel="icon" href="/static/isotipo-blanco.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/novit.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <img class="logo" src="/static/logo-blanco.png" alt="Novit">
+  <div class="sep"></div>
+  <div class="titulo"><b>MesaYa · Proveedores y modelos por propósito</b><span>Módulo 4 · Unidad 1 · Endpoints, API keys, rate limits y una familia de modelos para cada tarea</span></div>
+  <img class="wm" src="/static/isotipo-blanco.png" alt="">
+  <div class="der">
+    <span class="pill" id="estado"><span class="dot carga"></span><span id="estado-txt">Conectando…</span></span>
+    <label class="tog" title="Responde 429 como un proveedor real cuando se supera el límite de requests o de tokens"><span>Límite simulado</span><input type="checkbox" id="limite"><span class="sw"></span></label>
+    <label class="tog" title="Reproduce las respuestas grabadas sin llamar a los modelos"><span>Modo guion</span><input type="checkbox" id="guion"><span class="sw"></span></label>
+  </div>
+</header>
+
+<main class="app">
+  <aside class="col izq">
+    <div class="rotulo">Proveedor</div>
+    <div id="proveedores"></div>
+
+    <div class="rotulo">Modelo</div>
+    <div class="ctl"><div class="seg" id="familias"></div><div class="nota-modelo" id="nota-modelo"></div></div>
+    <label class="tog" title="Reemplaza nombres, teléfonos, correos y DNI antes de enviar el request"><span>Filtro de datos personales</span><input type="checkbox" id="filtro"><span class="sw"></span></label>
+
+    <div class="rotulo">Escenarios</div>
+    <div id="escenarios"></div>
+    <button class="btn sec mini" id="limpiar" style="margin-top:10px"><svg class="ic"><use href="/static/iconos.svg#i-trash"/></svg>Limpiar el registro</button>
+  </aside>
+
+  <section class="col centro">
+    <div class="chat-cab">
+      <span class="icb"><svg class="ic"><use href="/static/iconos.svg#i-globe"/></svg></span>
+      <div class="cab-txt"><h3>Registro de requests</h3><span id="cab-sub">Cada pedido con su proveedor, su modelo, sus tokens y sus tiempos</span></div>
+    </div>
+    <div class="mensajes" id="registro"></div>
+    <div class="entrada">
+      <textarea id="mensaje" placeholder="Escribí un pedido para el proveedor y el modelo elegidos…  (Enter para enviar)"></textarea>
+      <button class="btn" id="enviar"><svg class="ic"><use href="/static/iconos.svg#i-ask"/></svg>Enviar</button>
+    </div>
+  </section>
+
+  <aside class="col der">
+    <nav class="tabs" id="tabs">
+      <button data-t="request" class="on"><svg class="ic"><use href="/static/iconos.svg#i-code"/></svg>Request</button>
+      <button data-t="limites"><svg class="ic"><use href="/static/iconos.svg#i-clock"/></svg>Límites</button>
+      <button data-t="pipeline"><svg class="ic"><use href="/static/iconos.svg#i-chain"/></svg>Pipeline</button>
+      <button data-t="config"><svg class="ic"><use href="/static/iconos.svg#i-gear"/></svg>Configuración</button>
+    </nav>
+    <div class="panel" id="panel"></div>
+  </aside>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

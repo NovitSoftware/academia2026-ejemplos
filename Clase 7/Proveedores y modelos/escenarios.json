@@ -1,0 +1,79 @@
+{
+  "escenarios": [
+    {
+      "id": "A",
+      "titulo": "Cambiar de proveedor",
+      "slides": "04, 08, 09",
+      "panel": "request",
+      "idea": "El mismo pedido a Ollama y a NVIDIA con el mismo código. En la pestaña Request se ve que solo cambian la URL base, la clave y el modelo.",
+      "corridas": [
+        {
+          "nombre": "Ollama local",
+          "accion": "request",
+          "proveedor": "ollama",
+          "familia": "generalista",
+          "mensaje": "Resumí en una línea esta reserva: R-1043, 4 personas, sábado 14/11 a las 21 en Palermo, una persona celíaca."
+        },
+        {
+          "nombre": "NVIDIA",
+          "accion": "request",
+          "proveedor": "nvidia",
+          "familia": "generalista",
+          "mensaje": "Resumí en una línea esta reserva: R-1043, 4 personas, sábado 14/11 a las 21 en Palermo, una persona celíaca.",
+          "bien": true
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "titulo": "Llegó un 429",
+      "slides": "11, 12",
+      "panel": "limites",
+      "idea": "Ocho preguntas seguidas contra un límite simulado de requests y tokens. Sin reintentos, fallan. Con backoff se recuperan algunas; respetando Retry-After, todas, pero tarda. Con fallback, las que no entran van a un modelo chico local.",
+      "corridas": [
+        { "nombre": "Sin reintentos", "accion": "rafaga", "estrategia": "sin" },
+        { "nombre": "Backoff 1, 2, 4 s", "accion": "rafaga", "estrategia": "backoff" },
+        { "nombre": "Respetando Retry-After", "accion": "rafaga", "estrategia": "retry_after" },
+        { "nombre": "Con fallback", "accion": "rafaga", "estrategia": "fallback", "bien": true }
+      ]
+    },
+    {
+      "id": "C",
+      "titulo": "Un modelo por propósito",
+      "slides": "13, 14, 15",
+      "panel": "pipeline",
+      "idea": "Cada paso usa la familia que le corresponde: un modelo económico clasifica, los embeddings buscan la política, el generalista usa la tool y responde. La factura la lee un modelo con visión y el total se valida en código.",
+      "corridas": [
+        { "nombre": "Mensaje de WhatsApp", "accion": "pipeline", "caso": "reserva", "proveedor": "ollama" },
+        { "nombre": "Con NVIDIA de generalista", "accion": "pipeline", "caso": "reserva", "proveedor": "nvidia" },
+        { "nombre": "Factura de un proveedor", "accion": "pipeline", "caso": "factura", "proveedor": "ollama", "bien": true }
+      ]
+    },
+    {
+      "id": "D",
+      "titulo": "Datos personales y endpoint de prueba",
+      "slides": "06, 07, 10",
+      "panel": "request",
+      "idea": "El endpoint público de NVIDIA es para evaluar. Sin filtro, el teléfono y el correo del cliente viajan en el request. Con el filtro, se reemplazan antes de salir. La pestaña Configuración muestra de dónde sale la clave.",
+      "corridas": [
+        {
+          "nombre": "Sin filtro",
+          "accion": "request",
+          "proveedor": "nvidia",
+          "familia": "generalista",
+          "filtro": false,
+          "mensaje": "Soy Laura Gómez, mi teléfono es +54 9 11 5555-0123 y mi correo laura.gomez@example.com. Quiero pasar la reserva R-1043 al domingo a la misma hora."
+        },
+        {
+          "nombre": "Con filtro",
+          "accion": "request",
+          "proveedor": "nvidia",
+          "familia": "generalista",
+          "filtro": true,
+          "mensaje": "Soy Laura Gómez, mi teléfono es +54 9 11 5555-0123 y mi correo laura.gomez@example.com. Quiero pasar la reserva R-1043 al domingo a la misma hora.",
+          "bien": true
+        }
+      ]
+    }
+  ]
+}
