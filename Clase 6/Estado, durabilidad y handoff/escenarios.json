@@ -1,0 +1,136 @@
+{
+  "escenarios": [
+    {
+      "id": "A",
+      "titulo": "Caída y reanudación",
+      "slides": "3.1, 3.3, aplicación",
+      "panel": "tarea",
+      "idea": "El proceso se cae después de bloquear la mesa. Con checkpoints, se reanuda desde el paso 3 y la mesa no se vuelve a bloquear. Sin checkpoints, solo queda el mensaje en la cola: se empieza de cero y se repiten la mesa y la seña.",
+      "corridas": [
+        {
+          "nombre": "Caída tras bloquear la mesa",
+          "mensaje": "Mesa para 4 el sábado a las 21 en Centro, por favor.",
+          "reiniciar": true,
+          "fallas": { "caida_tras": 2 }
+        },
+        {
+          "nombre": "Reanudar",
+          "accion": "reanudar",
+          "bien": true
+        },
+        {
+          "nombre": "Sin checkpoints: caída",
+          "mensaje": "Mesa para 4 el sábado a las 21 en Centro, por favor.",
+          "reiniciar": true,
+          "config": { "checkpoints": false },
+          "fallas": { "caida_tras": 2 }
+        },
+        {
+          "nombre": "Reanudar sin checkpoints",
+          "accion": "reanudar",
+          "config": { "checkpoints": false },
+          "panel": "sistema"
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "titulo": "Timeout: correlation ID e idempotencia",
+      "slides": "3.2",
+      "panel": "sistema",
+      "idea": "La API cobra la seña pero la respuesta nunca llega. El retry con el mismo ID recibe «ya existe» y devuelve el cobro original. Sin ID, el retry cobra de nuevo; si el timeout es al crear la reserva, quedan dos reservas.",
+      "corridas": [
+        {
+          "nombre": "Timeout al cobrar · con ID",
+          "mensaje": "Mesa para 4 el sábado a las 21 en Centro, por favor.",
+          "reiniciar": true,
+          "fallas": { "timeout": "cobrar_sena" },
+          "bien": true
+        },
+        {
+          "nombre": "Timeout al cobrar · sin ID",
+          "mensaje": "Mesa para 4 el sábado a las 21 en Centro, por favor.",
+          "reiniciar": true,
+          "config": { "idempotencia": false },
+          "fallas": { "timeout": "cobrar_sena" }
+        },
+        {
+          "nombre": "Timeout al crear · sin ID",
+          "mensaje": "Mesa para 4 el sábado a las 21 en Centro, por favor.",
+          "reiniciar": true,
+          "config": { "idempotencia": false },
+          "fallas": { "timeout": "crear_reserva" }
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "titulo": "Reintentar con criterio",
+      "slides": "3.4, 3.5",
+      "panel": "tarea",
+      "idea": "Un 503 se reintenta con backoff (1 s, 2 s, 4 s + jitter). Un 400 no se reintenta. Un JSON roto del LLM se reintenta una vez, pasándole el error. Si la API no vuelve, se degrada, se compensa lo que quedó a medias y se escala a una persona.",
+      "corridas": [
+        {
+          "nombre": "503, 503 y después OK",
+          "mensaje": "Mesa para 4 el sábado a las 21 en Centro, por favor.",
+          "reiniciar": true,
+          "fallas": { "errores": "503x2" },
+          "bien": true
+        },
+        {
+          "nombre": "HTTP 400: no se reintenta",
+          "mensaje": "Mesa para 4 el sábado a las 21 en Centro, por favor.",
+          "reiniciar": true,
+          "fallas": { "errores": "400" }
+        },
+        {
+          "nombre": "JSON roto del LLM",
+          "mensaje": "Mesa para 4 el sábado a las 21 en Centro, por favor.",
+          "reiniciar": true,
+          "fallas": { "json_roto": true }
+        },
+        {
+          "nombre": "La API no vuelve",
+          "mensaje": "Mesa para 4 el sábado a las 21 en Centro, por favor.",
+          "reiniciar": true,
+          "fallas": { "errores": "503x4" }
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "titulo": "Handoff con contexto",
+      "slides": "3.6",
+      "panel": "handoff",
+      "idea": "«En realidad somos 40, es un cumpleaños»: la tarea pasa al agente de eventos con un resumen estructurado, y el de reservas deja de actuar. Sin contexto, el cliente tiene que repetir todo. Un reclamo va a una persona, con un resumen que se lee en 10 segundos.",
+      "corridas": [
+        {
+          "nombre": "A otro agente",
+          "mensajes": [
+            "Quiero reservar el sábado a las 21 en Pocitos.",
+            "En realidad somos 40, es un cumpleaños."
+          ],
+          "reiniciar": true,
+          "bien": true
+        },
+        {
+          "nombre": "Sin contexto",
+          "mensajes": [
+            "Quiero reservar el sábado a las 21 en Pocitos.",
+            "En realidad somos 40, es un cumpleaños."
+          ],
+          "reiniciar": true,
+          "config": { "handoff_contexto": false }
+        },
+        {
+          "nombre": "A una persona",
+          "mensajes": [
+            "El sábado cené en Centro y me intoxiqué con el pescado. Quiero que me devuelvan todo.",
+            "¿Hola? ¿Alguien me lee?"
+          ],
+          "reiniciar": true
+        }
+      ]
+    }
+  ]
+}

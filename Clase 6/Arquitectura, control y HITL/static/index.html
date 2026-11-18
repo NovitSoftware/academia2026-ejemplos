@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MesaYa · Arquitectura, control y HITL</title>
+<link rel="icon" href="/static/isotipo-blanco.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/novit.css">
+<link rel="stylesheet" href="/static/demo.css">
+</head>
+<body>
+<header class="top">
+  <img class="logo" src="/static/logo-blanco.png" alt="Novit">
+  <div class="sep"></div>
+  <div class="titulo"><b>MesaYa · Arquitectura, control y human-in-the-loop</b><span>Unidades 4 y 5 · Workflow híbrido, stopping conditions, detección de loops, multimodalidad y aprobación humana</span></div>
+  <img class="wm" src="/static/isotipo-blanco.png" alt="">
+  <div class="der">
+    <span class="pill" id="estado"><span class="dot carga"></span><span id="estado-txt">Conectando…</span>
+      <select id="modelo" title="Modelo" hidden></select></span>
+    <label class="tog" title="Reproduce las respuestas grabadas sin llamar a Ollama"><span>Modo guion</span><input type="checkbox" id="guion"><span class="sw"></span></label>
+  </div>
+</header>
+
+<main class="app">
+  <aside class="col izq">
+    <div class="rotulo">Frenos del agente</div>
+    <div class="ctl"><div class="lab">Máximo de pasos <b id="v-max_pasos"></b></div><input type="range" min="3" max="15" step="1" data-k="max_pasos"></div>
+    <div class="ctl"><div class="lab">Costo máximo por pedido <b id="v-costo_max"></b></div><input type="range" min="0.005" max="0.5" step="0.005" data-k="costo_max"></div>
+    <label class="tog" title="Corta cuando repite la misma tool con los mismos argumentos tres veces seguidas"><span>Detector de loops</span><input type="checkbox" data-k="detector"><span class="sw"></span></label>
+
+    <div class="rotulo">Aprobación humana</div>
+    <div class="ctl"><div class="lab">Reembolso sin aprobación hasta <b id="v-limite"></b></div><input type="range" min="5000" max="30000" step="5000" data-k="limite"></div>
+    <div class="ctl"><div class="lab">La regla vive en</div><div class="seg" id="regla"><button data-v="codigo">el código</button><button data-v="prompt">el prompt</button></div></div>
+    <label class="tog" title="Chequea que el total de la factura cierre antes de cargarla"><span>Validar lo extraído de imágenes</span><input type="checkbox" data-k="validar"><span class="sw"></span></label>
+
+    <div class="rotulo">Escenarios</div>
+    <div id="escenarios"></div>
+    <button class="btn sec mini" id="reiniciar" style="margin-top:10px"><svg class="ic"><use href="/static/iconos.svg#i-trash"/></svg>Reiniciar todo</button>
+  </aside>
+
+  <section class="col centro">
+    <div class="chat-cab">
+      <span class="icb"><svg class="ic"><use href="/static/iconos.svg#i-bot"/></svg></span>
+      <div class="cab-txt"><h3>Asistente de MesaYa</h3><span id="cab-quien"></span></div>
+    </div>
+    <div class="mensajes" id="mensajes"></div>
+    <div class="adjunto" id="adjunto" hidden></div>
+    <div class="entrada">
+      <div class="adjuntar">
+        <button class="btn sec" id="btn-adjuntar" title="Adjuntar una imagen"><svg class="ic"><use href="/static/iconos.svg#i-file"/></svg></button>
+        <div class="menu-adj" id="menu-adj" hidden></div>
+        <input type="file" id="archivo" accept="image/png,image/jpeg" hidden>
+      </div>
+      <textarea id="mensaje" placeholder="Escribile al asistente de MesaYa…  (Enter para enviar)"></textarea>
+      <button class="btn" id="enviar"><svg class="ic"><use href="/static/iconos.svg#i-ask"/></svg>Enviar</button>
+    </div>
+  </section>
+
+  <aside class="col der">
+    <nav class="tabs" id="tabs">
+      <button data-t="recorrido" class="on"><svg class="ic"><use href="/static/iconos.svg#i-steps"/></svg>Recorrido</button>
+      <button data-t="aprobaciones"><svg class="ic"><use href="/static/iconos.svg#i-person"/></svg>Aprobaciones <span class="badge" id="badge" hidden></span></button>
+      <button data-t="arquitectura"><svg class="ic"><use href="/static/iconos.svg#i-sitemap"/></svg>Arquitectura y autonomía</button>
+      <button data-t="llamadas"><svg class="ic"><use href="/static/iconos.svg#i-chat"/></svg>Llamadas</button>
+    </nav>
+    <div class="panel" id="panel"></div>
+  </aside>
+</main>
+<script src="/static/demo.js"></script>
+</body>
+</html>

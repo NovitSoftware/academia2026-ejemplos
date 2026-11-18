@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MesaYa · Estado, durabilidad y handoff</title>
+<link rel="icon" href="/static/isotipo-blanco.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/novit.css">
+<link rel="stylesheet" href="/static/demo.css">
+</head>
+<body>
+<header class="top">
+  <img class="logo" src="/static/logo-blanco.png" alt="Novit">
+  <div class="sep"></div>
+  <div class="titulo"><b>MesaYa · Estado, durabilidad y handoff</b><span>Unidad 3 · Estado persistido, correlation ID, checkpoints, retry con backoff, recuperación y handoff</span></div>
+  <img class="wm" src="/static/isotipo-blanco.png" alt="">
+  <div class="der">
+    <span class="pill" id="estado"><span class="dot carga"></span><span id="estado-txt">Conectando…</span>
+      <select id="modelo" title="Modelo" hidden></select></span>
+    <label class="tog" title="Reproduce las respuestas grabadas sin llamar a Ollama"><span>Modo guion</span><input type="checkbox" id="guion"><span class="sw"></span></label>
+  </div>
+</header>
+
+<main class="app">
+  <aside class="col izq">
+    <div class="rotulo">Controles</div>
+    <label class="tog" title="Guarda el estado en disco después de cada paso"><span>Checkpoints</span><input type="checkbox" data-k="checkpoints"><span class="sw"></span></label>
+    <label class="tog" title="Cada pedido a la API viaja con el correlation ID como clave de idempotencia"><span>Correlation ID e idempotencia</span><input type="checkbox" data-k="idempotencia"><span class="sw"></span></label>
+    <label class="tog" title="Reintenta los errores transitorios con backoff exponencial y jitter"><span>Retry con backoff</span><input type="checkbox" data-k="retry"><span class="sw"></span></label>
+    <label class="tog" title="El handoff lleva un resumen estructurado; apagado, solo el último mensaje"><span>Handoff con contexto</span><input type="checkbox" data-k="handoff_contexto"><span class="sw"></span></label>
+
+    <div class="rotulo">Fallas a inyectar</div>
+    <div class="ctl"><label>Caída del proceso</label>
+      <select class="sel" data-f="caida_tras">
+        <option value="0">Ninguna</option><option value="1">Después de extraer los datos</option><option value="2">Después de bloquear la mesa</option>
+        <option value="3">Después de cobrar la seña</option><option value="4">Después de crear la reserva</option>
+      </select></div>
+    <div class="ctl"><label>Timeout (la acción se hace, la respuesta no llega)</label>
+      <select class="sel" data-f="timeout">
+        <option value="">Ninguno</option><option value="bloquear_mesa">Al bloquear la mesa</option><option value="cobrar_sena">Al cobrar la seña</option><option value="crear_reserva">Al crear la reserva</option>
+      </select></div>
+    <div class="ctl"><label>Errores de la API al crear la reserva</label>
+      <select class="sel" data-f="errores">
+        <option value="">Ninguno</option><option value="503x2">503 dos veces</option><option value="503x4">503 cuatro veces</option><option value="400">400 (pedido mal armado)</option>
+      </select></div>
+    <label class="tog" title="La primera respuesta del LLM llega cortada"><span>JSON roto del LLM</span><input type="checkbox" data-f="json_roto"><span class="sw"></span></label>
+
+    <div class="rotulo">Escenarios</div>
+    <div id="escenarios"></div>
+    <button class="btn sec mini" id="reiniciar" style="margin-top:10px"><svg class="ic"><use href="/static/iconos.svg#i-trash"/></svg>Reiniciar todo</button>
+  </aside>
+
+  <section class="col centro">
+    <div class="chat-cab">
+      <span class="icb"><svg class="ic"><use href="/static/iconos.svg#i-globe"/></svg></span>
+      <div class="cab-txt"><h3>Web de clientes</h3><span id="cab-quien"></span></div>
+      <button class="btn mini" id="reanudar" hidden><svg class="ic"><use href="/static/iconos.svg#i-refresh"/></svg>Reanudar</button>
+    </div>
+    <div class="mensajes" id="mensajes"></div>
+    <div class="entrada">
+      <textarea id="mensaje" placeholder="Escribile al asistente de MesaYa…  (Enter para enviar)"></textarea>
+      <button class="btn" id="enviar"><svg class="ic"><use href="/static/iconos.svg#i-ask"/></svg>Enviar</button>
+    </div>
+  </section>
+
+  <aside class="col der">
+    <nav class="tabs" id="tabs">
+      <button data-t="tarea" class="on"><svg class="ic"><use href="/static/iconos.svg#i-steps"/></svg>Tarea</button>
+      <button data-t="sistema"><svg class="ic"><use href="/static/iconos.svg#i-db"/></svg>Sistema de reservas</button>
+      <button data-t="handoff"><svg class="ic"><use href="/static/iconos.svg#i-users"/></svg>Handoff</button>
+      <button data-t="disco"><svg class="ic"><use href="/static/iconos.svg#i-file"/></svg>Disco y log</button>
+      <button data-t="llamadas"><svg class="ic"><use href="/static/iconos.svg#i-chat"/></svg>Llamadas</button>
+    </nav>
+    <div class="panel" id="panel"></div>
+  </aside>
+</main>
+<script src="/static/demo.js"></script>
+</body>
+</html>

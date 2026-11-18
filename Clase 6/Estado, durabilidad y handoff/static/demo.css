@@ -1,0 +1,129 @@
+/* Piezas propias de la demo (la base viene de las demos de la Clase 5). */
+
+/* ---------- chat ---------- */
+.chat-cab .cab-txt { display: flex; flex-direction: column; line-height: 1.2; }
+.chat-cab .cab-txt span { font-size: 12.5px; color: var(--muted); }
+.chat-cab .btn { margin-left: auto; }
+.msg-a .de { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 900; letter-spacing: .6px; text-transform: uppercase;
+             color: var(--azul-1); margin-bottom: 5px; }
+.msg-a .de .ic { width: 14px; height: 14px; }
+.msg-a.agente_eventos { border-left-color: var(--violeta-2); } .msg-a.agente_eventos .de { color: var(--violeta-2); }
+.msg-a.humano_atencion, .msg-a.sistema { border-left-color: var(--violeta-3); } .msg-a.sistema .de, .msg-a.humano_atencion .de { color: var(--violeta-3); }
+.msg-a .meta { margin: 8px 0 0; }
+.msg-r { align-self: center; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
+         color: var(--azul-1); background: var(--accent-soft); padding: 5px 12px; border-radius: var(--r); animation: entra .3s; }
+.separador { display: flex; align-items: center; gap: 10px; color: var(--violeta-2); font-size: 12px; font-weight: 900; letter-spacing: 1px;
+             text-transform: uppercase; margin: 6px 0; }
+.separador::before, .separador::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--violeta-2), transparent); }
+
+/* ---------- escenarios ---------- */
+.var .pat { font-size: 10.5px; color: var(--muted); font-weight: 700; }
+
+/* ---------- recorrido ---------- */
+.tl-grupo { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; font-size: 11.5px; font-weight: 900; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--azul-1); }
+.tl-grupo::after { content: ""; flex: 1; height: 1px; background: var(--gris-borde); }
+.paso-r { border: 1px solid var(--gris-borde); border-left: 3px solid var(--azul-2); border-radius: var(--r); background: #fff; margin-bottom: 6px;
+          animation: entra .35s both; }
+.paso-r > .fila { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: start; padding: 8px 10px 6px; cursor: pointer; }
+.paso-r .tipo { width: 24px; height: 24px; border-radius: var(--r); display: grid; place-items: center; background: var(--gris-suave); }
+.paso-r .tipo .ic { width: 14px; height: 14px; color: var(--azul-1); }
+.paso-r.llm .tipo { background: var(--grad-head); } .paso-r.llm .tipo .ic { color: #fff; }
+.paso-r .t { font-weight: 700; font-size: 13.5px; color: var(--azul); line-height: 1.25; }
+.paso-r .d { font-size: 12px; color: var(--muted); margin-top: 1px; word-break: break-word; }
+.paso-r .num { text-align: right; font-size: 11.5px; color: var(--muted); white-space: nowrap; line-height: 1.5; }
+.paso-r .num b { color: var(--azul); }
+.paso-r .gantt { position: relative; height: 6px; margin: 0 10px 8px 46px; background: var(--gris-sup); border-radius: var(--r); }
+.paso-r .gantt i { position: absolute; top: 0; bottom: 0; background: var(--grad-head); border-radius: var(--r); min-width: 3px; }
+.paso-r.espera .gantt i { background: repeating-linear-gradient(45deg, var(--gris-4), var(--gris-4) 4px, var(--gris-suave) 4px, var(--gris-suave) 8px); }
+.paso-r .salida-paso { display: none; padding: 0 10px 8px 46px; }
+.paso-r.abierto .salida-paso { display: block; }
+.paso-r .salida-paso pre { display: block; margin: 0; }
+.paso-r.api { border-left-color: var(--cyan); } .paso-r.api .tipo .ic { color: var(--cyan); }
+.paso-r.gate { border-left-color: var(--violeta-3); } .paso-r.gate .tipo .ic { color: var(--violeta-3); }
+.paso-r.checkpoint { border-left-color: var(--azul-1); background: linear-gradient(90deg, var(--accent-soft), #fff 55%); }
+.paso-r.handoff { border-left-color: var(--violeta-2); background: linear-gradient(90deg, var(--warn-soft), #fff 55%); }
+.paso-r.handoff .tipo .ic { color: var(--violeta-2); }
+.paso-r.codigo, .paso-r.espera, .paso-r.saltado { border-left-color: var(--gris-3); }
+.paso-r.saltado .t { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--gris-3); }
+.paso-r.m-error, .paso-r.m-corta, .paso-r.caida { background: linear-gradient(90deg, var(--bad-soft), #fff 55%); border-left-color: var(--violeta-3); }
+.paso-r.m-error .tipo .ic, .paso-r.caida .tipo .ic { color: var(--violeta-3); }
+.paso-r.m-aviso { background: linear-gradient(90deg, var(--warn-soft), #fff 55%); border-left-color: var(--violeta-2); }
+.paso-r.m-idempotente { background: linear-gradient(90deg, var(--good-soft), #fff 55%); border-left-color: var(--cyan); }
+.eje { display: flex; justify-content: space-between; font-size: 11px; color: var(--gris-1); margin: 2px 0 2px 46px; }
+
+/* ---------- llamadas ---------- */
+.llamada { border: 1px solid var(--gris-borde); border-radius: var(--r); margin-bottom: 8px; }
+.llamada > div:first-child { display: flex; gap: 8px; align-items: center; padding: 8px 10px; cursor: pointer; font-size: 13px; }
+.llamada > div:first-child b { flex: 1; color: var(--azul); }
+.llamada .cuerpo { display: none; padding: 0 10px 10px; }
+.llamada.abierta .cuerpo { display: block; }
+.rol { font-size: 10.5px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: var(--azul-1); margin: 8px 0 3px; }
+.rol.assistant { color: var(--violeta-2); }
+
+/* ---------- la tarea: cinco pasos ---------- */
+.tuberia { display: flex; align-items: stretch; margin-bottom: 12px; }
+.tuberia .et { flex: 1; text-align: center; padding: 8px 3px 7px; font-size: 11px; color: var(--muted); background: #fff; border: 1px solid var(--gris-borde);
+               line-height: 1.25; position: relative; animation: entra .4s both; }
+.tuberia .et + .et { border-left: 0; }
+.tuberia .et .ic { display: block; margin: 0 auto 3px; width: 17px; height: 17px; color: var(--gris-2); }
+.tuberia .et b { display: block; color: var(--gris-1); font-size: 12px; }
+.tuberia .et.hecho { background: var(--grad-head); color: #dfe8ff; border-color: transparent; }
+.tuberia .et.hecho b, .tuberia .et.hecho .ic { color: #fff; }
+.tuberia .et.saltado { background: var(--accent-soft); color: var(--azul-1); }
+.tuberia .et.saltado b { color: var(--azul-1); } .tuberia .et.saltado .ic { color: var(--azul-2); }
+.tuberia .et.fallo { background: var(--grad-close); color: #f6e8ff; border-color: transparent; }
+.tuberia .et.fallo b, .tuberia .et.fallo .ic { color: #fff; }
+.tuberia .et.compensado { background: var(--bad-soft); color: var(--violeta-3); }
+.tuberia .et.compensado b { color: var(--violeta-3); text-decoration: line-through; }
+.tuberia .et.compensado .ic { color: var(--violeta-3); }
+.tuberia .et .cp { position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; display: grid; place-items: center; }
+.tuberia .et .cp .ic { width: 9px; height: 9px; margin: 0; color: var(--azul-1); }
+.tuberia .caida { flex: none; width: 24px; display: grid; place-items: center; background: var(--violeta-3); color: #fff; font-weight: 900; font-size: 14px; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--muted); margin: -4px 0 12px; }
+.leyenda i { display: inline-block; width: 10px; height: 10px; vertical-align: -1px; margin-right: 4px; border-radius: 2px; }
+
+.dos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dos .card { margin-bottom: 0; }
+.estado-card h4 .chip { margin-left: auto; }
+.estado-card pre.bloque { max-height: 300px; font-size: 11.5px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12.5px; }
+.kv b { color: var(--muted); font-weight: 700; }
+.entrada-lista { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
+.entrada-lista li { margin-bottom: 2px; }
+
+/* ---------- sistema de reservas ---------- */
+table.t td .chip { font-size: 10.5px; }
+table.t tr.dup td { background: var(--bad-soft); }
+table.t tr.dup td:first-child { box-shadow: inset 3px 0 0 var(--violeta-3); }
+table.t tr.off td { color: var(--gris-2); }
+table.t td.mono, table.t td code { font-family: var(--mono); font-size: 11.5px; }
+.pedidos td { font-size: 12px; }
+.pedidos tr.mal td { color: var(--violeta-3); }
+
+/* ---------- handoff ---------- */
+.chk { display: grid; grid-template-columns: 20px 1fr; gap: 6px; font-size: 12.5px; padding: 3px 0; }
+.chk .ic { color: var(--cyan); margin-top: 2px; } .chk.no .ic { color: var(--violeta-3); } .chk.no { color: var(--violeta-3); }
+.chk small { display: block; color: var(--muted); }
+.caso { border: 1px solid var(--gris-borde); border-left: 3px solid var(--violeta-3); border-radius: var(--r); padding: 10px 12px; margin-bottom: 8px; }
+.caso .cab { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; }
+.caso .cab b { color: var(--azul); }
+.caso .cab .chip:last-child { margin-left: auto; }
+.caso p { margin: 4px 0; font-size: 13px; line-height: 1.45; }
+.caso ul { margin: 4px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--muted); }
+.duenos { display: flex; gap: 6px; margin-bottom: 12px; }
+.dueno { flex: 1; border: 1px solid var(--gris-borde); border-radius: var(--r); padding: 8px; text-align: center; font-size: 12px; color: var(--gris-1); opacity: .6; }
+.dueno .ic { display: block; margin: 0 auto 4px; width: 18px; height: 18px; }
+.dueno.on { opacity: 1; border-color: var(--violeta-2); background: var(--warn-soft); color: var(--violeta-2); font-weight: 700; }
+.dueno.ex { opacity: .8; text-decoration: line-through; }
+
+/* ---------- disco y log ---------- */
+.log { font-family: var(--mono); font-size: 11.5px; line-height: 1.55; }
+.log div { display: grid; grid-template-columns: 92px 92px 118px 1fr; gap: 8px; padding: 2px 4px; border-bottom: 1px solid var(--gris-suave); }
+.log div.on { background: var(--accent-soft); }
+.log .cid { color: var(--azul-1); cursor: pointer; font-weight: 600; }
+.log .comp { color: var(--violeta-2); }
+.log .h { color: var(--gris-1); }
+.acciones { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.acciones select { border: 1px solid var(--gris-borde); border-radius: var(--r); padding: 5px 8px; background: #fff; font-size: 13px; }
+.cargando { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; padding: 10px 0; }

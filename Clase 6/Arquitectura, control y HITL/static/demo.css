@@ -1,0 +1,146 @@
+/* Piezas propias de la demo (la base viene de las demos de la Clase 5). */
+
+/* ---------- chat ---------- */
+.chat-cab .cab-txt { display: flex; flex-direction: column; line-height: 1.2; }
+.chat-cab .cab-txt span { font-size: 12.5px; color: var(--muted); }
+.chat-cab .btn { margin-left: auto; }
+.msg-a .de { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 900; letter-spacing: .6px; text-transform: uppercase;
+             color: var(--azul-1); margin-bottom: 5px; }
+.msg-a .de .ic { width: 14px; height: 14px; }
+.msg-a.agente_eventos { border-left-color: var(--violeta-2); } .msg-a.agente_eventos .de { color: var(--violeta-2); }
+.msg-a.humano_atencion, .msg-a.sistema { border-left-color: var(--violeta-3); } .msg-a.sistema .de, .msg-a.humano_atencion .de { color: var(--violeta-3); }
+.msg-a .meta { margin: 8px 0 0; }
+.msg-r { align-self: center; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
+         color: var(--azul-1); background: var(--accent-soft); padding: 5px 12px; border-radius: var(--r); animation: entra .3s; }
+.separador { display: flex; align-items: center; gap: 10px; color: var(--violeta-2); font-size: 12px; font-weight: 900; letter-spacing: 1px;
+             text-transform: uppercase; margin: 6px 0; }
+.separador::before, .separador::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--violeta-2), transparent); }
+
+/* ---------- escenarios ---------- */
+.var .pat { font-size: 10.5px; color: var(--muted); font-weight: 700; }
+
+/* ---------- recorrido ---------- */
+.tl-grupo { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; font-size: 11.5px; font-weight: 900; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--azul-1); }
+.tl-grupo::after { content: ""; flex: 1; height: 1px; background: var(--gris-borde); }
+.paso-r { border: 1px solid var(--gris-borde); border-left: 3px solid var(--azul-2); border-radius: var(--r); background: #fff; margin-bottom: 6px;
+          animation: entra .35s both; }
+.paso-r > .fila { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: start; padding: 8px 10px 6px; cursor: pointer; }
+.paso-r .tipo { width: 24px; height: 24px; border-radius: var(--r); display: grid; place-items: center; background: var(--gris-suave); }
+.paso-r .tipo .ic { width: 14px; height: 14px; color: var(--azul-1); }
+.paso-r.llm .tipo { background: var(--grad-head); } .paso-r.llm .tipo .ic { color: #fff; }
+.paso-r .t { font-weight: 700; font-size: 13.5px; color: var(--azul); line-height: 1.25; }
+.paso-r .d { font-size: 12px; color: var(--muted); margin-top: 1px; word-break: break-word; }
+.paso-r .num { text-align: right; font-size: 11.5px; color: var(--muted); white-space: nowrap; line-height: 1.5; }
+.paso-r .num b { color: var(--azul); }
+.paso-r .gantt { position: relative; height: 6px; margin: 0 10px 8px 46px; background: var(--gris-sup); border-radius: var(--r); }
+.paso-r .gantt i { position: absolute; top: 0; bottom: 0; background: var(--grad-head); border-radius: var(--r); min-width: 3px; }
+.paso-r.espera .gantt i { background: repeating-linear-gradient(45deg, var(--gris-4), var(--gris-4) 4px, var(--gris-suave) 4px, var(--gris-suave) 8px); }
+.paso-r .salida-paso { display: none; padding: 0 10px 8px 46px; }
+.paso-r.abierto .salida-paso { display: block; }
+.paso-r .salida-paso pre { display: block; margin: 0; }
+.paso-r.api { border-left-color: var(--cyan); } .paso-r.api .tipo .ic { color: var(--cyan); }
+.paso-r.gate { border-left-color: var(--violeta-3); } .paso-r.gate .tipo .ic { color: var(--violeta-3); }
+.paso-r.checkpoint { border-left-color: var(--azul-1); background: linear-gradient(90deg, var(--accent-soft), #fff 55%); }
+.paso-r.handoff { border-left-color: var(--violeta-2); background: linear-gradient(90deg, var(--warn-soft), #fff 55%); }
+.paso-r.handoff .tipo .ic { color: var(--violeta-2); }
+.paso-r.codigo, .paso-r.espera, .paso-r.saltado { border-left-color: var(--gris-3); }
+.paso-r.saltado .t { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--gris-3); }
+.paso-r.m-error, .paso-r.m-corta, .paso-r.caida { background: linear-gradient(90deg, var(--bad-soft), #fff 55%); border-left-color: var(--violeta-3); }
+.paso-r.m-error .tipo .ic, .paso-r.caida .tipo .ic { color: var(--violeta-3); }
+.paso-r.m-aviso { background: linear-gradient(90deg, var(--warn-soft), #fff 55%); border-left-color: var(--violeta-2); }
+.paso-r.m-idempotente { background: linear-gradient(90deg, var(--good-soft), #fff 55%); border-left-color: var(--cyan); }
+.eje { display: flex; justify-content: space-between; font-size: 11px; color: var(--gris-1); margin: 2px 0 2px 46px; }
+
+/* ---------- llamadas ---------- */
+.llamada { border: 1px solid var(--gris-borde); border-radius: var(--r); margin-bottom: 8px; }
+.llamada > div:first-child { display: flex; gap: 8px; align-items: center; padding: 8px 10px; cursor: pointer; font-size: 13px; }
+.llamada > div:first-child b { flex: 1; color: var(--azul); }
+.llamada .cuerpo { display: none; padding: 0 10px 10px; }
+.llamada.abierta .cuerpo { display: block; }
+.rol { font-size: 10.5px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: var(--azul-1); margin: 8px 0 3px; }
+.rol.assistant { color: var(--violeta-2); }
+
+/* ---------- adjuntar imágenes ---------- */
+.adjuntar { position: relative; }
+.adjuntar > .btn { height: 46px; padding: 0 12px; }
+.menu-adj { position: absolute; bottom: 52px; left: 0; width: 290px; background: #fff; border: 1px solid var(--gris-borde); border-radius: var(--r);
+            box-shadow: var(--sombra); padding: 6px; z-index: 5; }
+.menu-adj button { display: flex; gap: 10px; align-items: center; width: 100%; border: 0; background: none; padding: 6px; cursor: pointer; text-align: left;
+                   border-radius: var(--r); font-size: 13px; }
+.menu-adj button:hover { background: var(--accent-soft); }
+.menu-adj img { width: 54px; height: 40px; object-fit: cover; border: 1px solid var(--gris-borde); }
+.adjunto { display: flex; align-items: center; gap: 10px; padding: 8px 18px 0; background: #fff; border-top: 1px solid var(--gris-borde); font-size: 13px; }
+.adjunto img { height: 44px; border: 1px solid var(--gris-borde); }
+.adjunto button { border: 0; background: none; cursor: pointer; color: var(--muted); }
+.msg-u img { display: block; max-width: 240px; margin-top: 8px; border: 2px solid rgba(255,255,255,.6); }
+.badge { background: var(--violeta-3); color: #fff; border-radius: 9px; font-size: 10.5px; padding: 1px 6px; font-weight: 900; }
+.paso-r.tool { border-left-color: var(--cyan); } .paso-r.tool .tipo .ic { color: var(--cyan); }
+.paso-r.fin { border-left-color: var(--cyan); background: linear-gradient(90deg, var(--good-soft), #fff 55%); }
+.paso-r.humano { border-left-color: var(--violeta-2); background: linear-gradient(90deg, var(--warn-soft), #fff 55%); }
+.paso-r.humano .tipo .ic { color: var(--violeta-2); }
+.paso-r.m-ok.gate { border-left-color: var(--cyan); }
+.paso-r.m-repetida { background: linear-gradient(90deg, var(--warn-soft), #fff 55%); border-left-color: var(--violeta-2); }
+.paso-r.m-repetida .t::after { content: " · repetida"; color: var(--violeta-2); font-weight: 900; font-size: 11px; }
+
+/* ---------- frenos del loop ---------- */
+.frenos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.freno { border: 1px solid var(--gris-borde); border-radius: var(--r); padding: 8px 10px; }
+.freno .n { font-size: 11.5px; font-weight: 700; color: var(--muted); display: flex; justify-content: space-between; }
+.freno .n b { color: var(--azul); }
+.freno .barra { margin-top: 6px; height: 8px; }
+.freno.lleno { border-color: var(--violeta-3); background: var(--bad-soft); }
+.freno.lleno .barra i { background: var(--grad-close); }
+.senales { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.ruta-t { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; font-size: 12px; }
+.ruta-t .chip .ic { width: 12px; height: 12px; }
+
+/* ---------- documento ---------- */
+.doc { display: grid; grid-template-columns: 170px 1fr; gap: 12px; align-items: start; }
+.doc img { width: 100%; border: 1px solid var(--gris-borde); }
+.chq { display: grid; grid-template-columns: 1fr auto; gap: 6px; font-size: 12.5px; padding: 3px 0; border-bottom: 1px solid var(--gris-suave); }
+.chq.tot { font-weight: 900; color: var(--azul); border-bottom: 0; }
+.chq.mal { color: var(--violeta-3); }
+.inyeccion { margin-top: 8px; background: #fff6d6; border-left: 3px solid #d9b600; padding: 8px 10px; font-size: 12.5px; color: #5a4300; }
+
+/* ---------- aprobaciones ---------- */
+.aprob { border: 1px solid var(--gris-borde); border-radius: var(--r); margin-bottom: 12px; overflow: hidden; background: #fff; }
+.aprob .cab { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--grad-close); color: #fff; font-size: 12.5px; font-weight: 700; }
+.aprob .cab .chip { margin-left: auto; background: rgba(255,255,255,.18); color: #fff; }
+.aprob.aprobada .cab { background: var(--grad-head); }
+.aprob.rechazada .cab { background: var(--gris-2); }
+.aprob .cuerpo { padding: 10px 12px; display: grid; grid-template-columns: 1fr 200px; gap: 14px; }
+.aprob h3 { font-size: 16px; margin-bottom: 6px; }
+.aprob .porque { font-size: 13px; color: var(--violeta-2); font-weight: 700; margin-bottom: 6px; }
+.aprob ul { margin: 0 0 8px; padding-left: 18px; font-size: 12.5px; color: var(--texto); }
+.aprob .botones { display: flex; gap: 8px; margin-top: 8px; }
+.aprob .reg { font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--gris-suave); padding-top: 6px; }
+.aprob .reg div { margin-bottom: 2px; }
+.cinco { font-size: 11.5px; color: var(--muted); }
+.cinco div { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 5px; }
+.cinco b { width: 17px; height: 17px; border-radius: 50%; background: var(--grad-head); color: #fff; display: grid; place-items: center; font-size: 10px; flex: none; }
+
+/* ---------- arquitectura ---------- */
+.arq { display: grid; grid-template-columns: 110px 1fr; gap: 8px 10px; align-items: stretch; margin-bottom: 14px; }
+.arq .entrada-a { grid-row: span 3; border: 1px solid var(--gris-borde); border-radius: var(--r); display: flex; flex-direction: column; align-items: center;
+                  justify-content: center; text-align: center; font-size: 12px; color: var(--muted); padding: 8px; }
+.arq .entrada-a b { color: var(--azul); font-size: 13px; }
+.arq .camino { border: 1px solid var(--gris-borde); border-radius: var(--r); padding: 8px 10px; opacity: .5; transition: all .3s; }
+.arq .camino.on { opacity: 1; border-color: var(--azul-2); box-shadow: var(--sombra); background: var(--accent-soft); }
+.arq .camino .tt { font-weight: 900; font-size: 12.5px; color: var(--azul); margin-bottom: 5px; display: flex; gap: 6px; align-items: center; }
+.arq .camino .tt small { font-weight: 400; color: var(--muted); }
+.arq .nodos { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 11.5px; }
+.arq .nodo { padding: 3px 7px; border-radius: var(--r); background: #fff; border: 1px solid var(--gris-borde); }
+.arq .nodo.llm { background: var(--grad-head); color: #fff; border-color: transparent; }
+.arq .nodo.hum { background: var(--grad-close); color: #fff; border-color: transparent; }
+.arq .nodo.cod { background: #fff; color: var(--azul-1); }
+.arq .fl { color: var(--gris-2); }
+.niveles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+.nivel { border: 1px solid var(--gris-borde); border-top: 3px solid var(--cyan); border-radius: var(--r); padding: 8px; font-size: 12px; }
+.nivel b { display: block; color: var(--azul); font-size: 13px; margin-bottom: 3px; }
+.nivel.confirmacion { border-top-color: var(--azul-1); } .nivel.aprobacion { border-top-color: var(--violeta-2); } .nivel.nunca { border-top-color: var(--violeta-3); }
+.nivel span { color: var(--muted); }
+table.t .niv { font-size: 10.5px; }
+.cargando { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; padding: 10px 0; }
+.msg-r { max-width: 90%; text-transform: none; letter-spacing: 0; font-size: 12.5px; text-align: center; }
+.msg-a .txt.nada { color: var(--muted); font-style: italic; }
