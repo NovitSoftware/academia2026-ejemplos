@@ -1,0 +1,82 @@
+{
+  "escenarios": [
+    {
+      "id": "A",
+      "titulo": "Medir la matriz",
+      "slides": "03, 04, 05",
+      "panel": "matriz",
+      "idea": "Dieciséis tareas de MesaYa, cuatro de cada tipo, corridas en los tres perfiles. Cada respuesta la corrige código. La matriz sale de lo medido: aciertos por tipo, latencia, tokens por segundo y costo.",
+      "corridas": [
+        { "nombre": "Medir los tres perfiles", "accion": "matriz", "bien": true }
+      ]
+    },
+    {
+      "id": "B",
+      "titulo": "Elegir por descarte",
+      "slides": "06",
+      "panel": "descarte",
+      "idea": "Los cuatro filtros de la slide sobre los resultados medidos: requisitos duros, umbral de calidad, latencia y, recién al final, costo. Cambian la tarea y los umbrales; cambia el elegido.",
+      "corridas": [
+        { "nombre": "Extraer reservas a JSON", "accion": "descarte", "tipo": "extraer", "umbral": 0.75, "p95": 6 },
+        { "nombre": "Razonar una política", "accion": "descarte", "tipo": "razonar", "umbral": 0.75, "p95": 30, "bien": true }
+      ]
+    },
+    {
+      "id": "C",
+      "titulo": "Router con cascada",
+      "slides": "11, 13, 14",
+      "panel": "router",
+      "idea": "Cinco estrategias sobre las mismas tareas: siempre el grande, siempre el económico, reglas, cascada, y reglas con cascada. Cada tarea no resuelta pasa a una persona, y cuánto cuesta eso decide qué estrategia gana: si un error es caro, conviene el modelo que menos se equivoca; si es barato, el router.",
+      "corridas": [
+        { "nombre": "Derivar cuesta USD 0,50", "accion": "router", "derivacion": 0.5 },
+        { "nombre": "Derivar cuesta USD 0,01", "accion": "router", "derivacion": 0.01, "bien": true },
+        { "nombre": "Si fallar no costara nada", "accion": "router", "derivacion": 0 }
+      ]
+    },
+    {
+      "id": "D",
+      "titulo": "Reglas o clasificación",
+      "slides": "10, 12",
+      "panel": "clasificacion",
+      "idea": "Ocho mensajes que hay que mandar al modelo económico o al grande. Las reglas por palabras clave son gratis pero se equivocan con lo que no esperaban; un clasificador chico entiende el contenido a cambio de una llamada más.",
+      "corridas": [
+        { "nombre": "Reglas contra clasificador", "accion": "clasificar", "bien": true }
+      ]
+    }
+  ],
+
+  "politica": "Política de señas de MesaYa:\n- La seña es de $2.000 por persona. Para grupos de 8 personas o más, es de $2.500 por persona.\n- Si cancela con más de 24 horas de anticipación se devuelve el 100 % de la seña; entre 2 y 24 horas, el 50 %; con menos de 2 horas, nada.\n- Excepción: a los grupos de 8 o más se les devuelve como máximo el 50 %, aunque cancelen con más de 24 horas.\n- Si no corresponde devolución y el cliente tiene 5 visitas o más en el año, recibe $1.000 de crédito para la próxima visita. En los demás casos el crédito es $0.",
+
+  "tareas": [
+    { "id": "c1", "tipo": "clasificar", "mensaje": "Quiero una mesa para dos mañana a la noche.", "esperado": { "intencion": "reservar" } },
+    { "id": "c2", "tipo": "clasificar", "mensaje": "Lo del sábado ya no va, borrala.", "esperado": { "intencion": "cancelar" } },
+    { "id": "c3", "tipo": "clasificar", "mensaje": "¿Tienen opciones sin TACC en Belgrano?", "esperado": { "intencion": "consulta" } },
+    { "id": "c4", "tipo": "clasificar", "mensaje": "Esperamos 40 minutos y la comida llegó fría.", "esperado": { "intencion": "reclamo" } },
+
+    { "id": "e1", "tipo": "extraer", "mensaje": "Reserva en Palermo para 4 el sábado a las 21.", "esperado": { "sucursal": "Palermo", "fecha": "2026-11-14", "hora": "21:00", "personas": 4 } },
+    { "id": "e2", "tipo": "extraer", "mensaje": "Somos seis, mañana 20.30 en Belgrano.", "esperado": { "sucursal": "Belgrano", "fecha": "2026-11-13", "hora": "20:30", "personas": 6 } },
+    { "id": "e3", "tipo": "extraer", "mensaje": "Para el martes que viene a las 13 en el Centro, mi pareja y yo.", "esperado": { "sucursal": "Centro", "fecha": "2026-11-17", "hora": "13:00", "personas": 2 } },
+    { "id": "e4", "tipo": "extraer", "mensaje": "El 3 de diciembre, una docena, Palermo, 22 hs.", "esperado": { "sucursal": "Palermo", "fecha": "2026-12-03", "hora": "22:00", "personas": 12 } },
+
+    { "id": "t1", "tipo": "herramienta", "mensaje": "¿Hay lugar para 3 hoy a las 22 en Centro?", "esperado": { "tool": "buscar_disponibilidad", "args": { "sucursal": "Centro", "personas": 3, "fecha": "2026-11-12" } } },
+    { "id": "t2", "tipo": "herramienta", "mensaje": "Cancelá la reserva R-2291, porfa.", "esperado": { "tool": "cancelar_reserva", "args": { "codigo": "R-2291" } } },
+    { "id": "t3", "tipo": "herramienta", "mensaje": "¿Qué platos veganos tienen en Belgrano?", "esperado": { "tool": "consultar_menu", "args": { "sucursal": "Belgrano", "filtro": "vegano" } } },
+    { "id": "t4", "tipo": "herramienta", "mensaje": "¿Hasta qué hora abre Palermo el domingo?", "esperado": { "tool": "consultar_horario", "args": { "sucursal": "Palermo", "dia": "domingo" } } },
+
+    { "id": "r1", "tipo": "razonar", "datos": { "personas": 4, "horas": 30, "visitas": 1 }, "esperado": { "devolucion": 8000, "credito": 0 } },
+    { "id": "r2", "tipo": "razonar", "datos": { "personas": 6, "horas": 5, "visitas": 2 }, "esperado": { "devolucion": 6000, "credito": 0 } },
+    { "id": "r3", "tipo": "razonar", "datos": { "personas": 10, "horas": 48, "visitas": 0 }, "esperado": { "devolucion": 12500, "credito": 0 } },
+    { "id": "r4", "tipo": "razonar", "datos": { "personas": 3, "horas": 1, "visitas": 7 }, "esperado": { "devolucion": 0, "credito": 1000 } }
+  ],
+
+  "mensajes_router": [
+    { "mensaje": "¿Hasta qué hora abren el domingo?", "esperado": "simple" },
+    { "mensaje": "Cancelá la reserva R-1043.", "esperado": "simple" },
+    { "mensaje": "Somos 40 para un evento, dos celíacos y un presupuesto de $500.000.", "esperado": "complejo" },
+    { "mensaje": "Si cancelo 3 horas antes y somos 9, ¿cuánto me devuelven?", "esperado": "complejo" },
+    { "mensaje": "Mesa para 2 hoy a las 21 en Centro.", "esperado": "simple" },
+    { "mensaje": "Mi reserva figura a otro nombre y encima me debitaron la seña dos veces.", "esperado": "complejo" },
+    { "mensaje": "¿Puedo pasar la del viernes al sábado y que seamos 6 en vez de 4?", "esperado": "complejo" },
+    { "mensaje": "Quiero reservar para un grupo de amigos el jueves.", "esperado": "simple" }
+  ]
+}

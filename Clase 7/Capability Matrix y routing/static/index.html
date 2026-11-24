@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MesaYa · Capability Matrix y routing</title>
+<link rel="icon" href="/static/isotipo-blanco.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/novit.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <img class="logo" src="/static/logo-blanco.png" alt="Novit">
+  <div class="sep"></div>
+  <div class="titulo"><b>MesaYa · Capability Matrix y Model Routing</b><span>Módulo 4 · Unidad 2 · Medir modelos, elegir por descarte y rutear cada pedido al más barato que lo resuelve</span></div>
+  <img class="wm" src="/static/isotipo-blanco.png" alt="">
+  <div class="der">
+    <span class="pill" id="estado"><span class="dot carga"></span><span id="estado-txt">Conectando…</span></span>
+    <label class="tog" title="Reproduce las respuestas grabadas sin llamar a los modelos"><span>Modo guion</span><input type="checkbox" id="guion"><span class="sw"></span></label>
+  </div>
+</header>
+
+<main class="app">
+  <aside class="col izq">
+    <div class="rotulo">Perfiles</div>
+    <div id="perfiles"></div>
+
+    <div class="rotulo">Parámetros</div>
+    <div class="ctl"><div class="lab">Costo de derivar a una persona <b id="v-derivacion"></b></div><input type="range" min="0" max="2" step="0.01" id="derivacion"></div>
+    <div class="ctl"><div class="lab">Descarte: tarea</div><div class="seg" id="tipos"></div></div>
+    <div class="ctl"><div class="lab">Umbral de calidad <b id="v-umbral"></b></div><input type="range" min="0.25" max="1" step="0.25" id="umbral"></div>
+    <div class="ctl"><div class="lab">Latencia máxima (p95) <b id="v-p95"></b></div><input type="range" min="1" max="30" step="1" id="p95"></div>
+
+    <div class="rotulo">Escenarios</div>
+    <div id="escenarios"></div>
+    <button class="btn sec mini" id="borrar" style="margin-top:10px"><svg class="ic"><use href="/static/iconos.svg#i-trash"/></svg>Borrar los resultados</button>
+  </aside>
+
+  <section class="col centro">
+    <div class="chat-cab">
+      <span class="icb"><svg class="ic"><use href="/static/iconos.svg#i-table"/></svg></span>
+      <div class="cab-txt"><h3>Tablero de tareas</h3><span id="cab-sub">Cada celda es una llamada corregida por código. Hacé clic para ver el request.</span></div>
+    </div>
+    <div class="tablero" id="tablero"></div>
+  </section>
+
+  <aside class="col der">
+    <nav class="tabs" id="tabs">
+      <button data-t="matriz" class="on"><svg class="ic"><use href="/static/iconos.svg#i-table"/></svg>Matriz</button>
+      <button data-t="descarte"><svg class="ic"><use href="/static/iconos.svg#i-funnel"/></svg>Descarte</button>
+      <button data-t="router"><svg class="ic"><use href="/static/iconos.svg#i-route"/></svg>Router</button>
+      <button data-t="clasificacion"><svg class="ic"><use href="/static/iconos.svg#i-split"/></svg>Reglas o clasificación</button>
+      <button data-t="llamada"><svg class="ic"><use href="/static/iconos.svg#i-code"/></svg>Llamada</button>
+    </nav>
+    <div class="panel" id="panel"></div>
+  </aside>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
