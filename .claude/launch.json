@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "local-y-edge",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["Clase 8/Ejecución local y edge/iniciar.sh"],
+      "port": 5900
+    },
+    {
+      "name": "costos-y-latencia",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["Clase 8/Costos, latencia y fallback/iniciar.sh"],
+      "port": 5910
+    }
+  ]
+}
