@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MesaYa · Ejecución local y edge</title>
+<link rel="icon" href="/static/isotipo-blanco.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/novit.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <img class="logo" src="/static/logo-blanco.png" alt="Novit">
+  <div class="sep"></div>
+  <div class="titulo"><b>MesaYa · Ejecución local y edge</b><span>Módulo 4 · Unidad 3 · Cuantización, VRAM, tokens por segundo, offline y el punto de equilibrio</span></div>
+  <img class="wm" src="/static/isotipo-blanco.png" alt="">
+  <div class="der">
+    <span class="pill" title="El banco, la tablet y la cuenta usan datos simulados con las cuentas de las slides"><span class="dot ok"></span>Datos simulados</span>
+    <span class="pill" id="estado"><span class="dot carga"></span><span id="estado-txt">Buscando Ollama…</span></span>
+  </div>
+</header>
+
+<main class="app">
+  <aside class="col izq">
+    <div class="rotulo">Escenarios</div>
+    <div id="escenarios"></div>
+    <div id="controles"></div>
+  </aside>
+
+  <section class="col centro">
+    <div class="chat-cab">
+      <span class="icb" id="cab-ic"></span>
+      <div class="cab-txt"><h3 id="cab-titulo"></h3><span id="cab-sub"></span></div>
+      <div class="cab-acc" id="cab-acc"></div>
+    </div>
+    <div class="escena" id="escena"></div>
+  </section>
+
+  <aside class="col der">
+    <nav class="tabs" id="tabs"></nav>
+    <div class="panel" id="panel"></div>
+  </aside>
+</main>
+<div class="tip" id="tip" hidden></div>
+<script src="/static/sim.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
